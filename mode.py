@@ -8,6 +8,8 @@ class Mode(WindowDetect):
     """
     Mode类，WindowDetect的子类，实现了特定的点击操作。
     """
+    def __init__(self, window_name):
+        super().__init__(window_name)
 
     def click_operation(self):
         """
