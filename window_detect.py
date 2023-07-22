@@ -74,12 +74,13 @@ class WindowDetect:
                 image = image[None]
         return image
 
-    def start_detect(self, timeout=None):
+    def start_detect(self, class_names, timeout=None):
         """
-        进行物体检测，并返回检测到的物体的列表。
+        进行物体检测，并返回检测到的物体。
 
+        :param class_names: 要检测的物体的类别名称列表。
         :param timeout: 超时时间（秒）。如果设置了超时时间，将在超时时间内返回None。
-        :return: 一个字典列表，每个字典代表一个检测到的物体，包含类别名称，边界框和置信度。
+        :return: 一个字典，代表一个检测到的物体，包含类别名称，边界框和置信度。
         """
         start_time = time.time() if timeout is not None else None
 
@@ -98,7 +99,7 @@ class WindowDetect:
             # 进行NMS
             with self.time_profile[2]:
                 pred = non_max_suppression(pred, WindowDetect.conf_thres, WindowDetect.iou_thres, WindowDetect.classes,
-                                            WindowDetect.agnostic_nms, max_det=WindowDetect.max_det)
+                                        WindowDetect.agnostic_nms, max_det=WindowDetect.max_det)
             # 处理检测结果
             for _, det in enumerate(pred):
                 if len(det):
@@ -107,10 +108,13 @@ class WindowDetect:
                     det[:, :4] = scale_boxes(image.shape[2:], det[:, :4], im0.shape).round()
                     # 收集检测到的物体
                     for *xyxy, conf, cls in reversed(det):
-                        if self.class_names.strip() == self.names[int(cls)].strip():
-                            print(f'{self.class_names}: {conf} {xyxy}')
-                            return {'class_name': self.class_names, 'bbox': xyxy, 'confidence': conf}
+                        if self.names[int(cls)].strip() in [name.strip() for name in class_names]:
+                            print({'class_name': self.names[int(cls)], 'bbox': xyxy, 'confidence': conf})
+                            return {'class_name': self.names[int(cls)], 'bbox': xyxy, 'confidence': conf}
         return None
+
+
+
 
     def detect_and_click(self, class_name, perform_click, timeout=None):
         """
@@ -120,9 +124,8 @@ class WindowDetect:
         :param perform_click: 用于执行点击操作的函数。
         :param timeout: 超时时间（秒）。如果为None，则没有超时时间。
         """
-        self.class_names = class_name
-        detected_object = self.start_detect(timeout)
-        if detected_object is not None and detected_object['class_name'] == self.class_names:
+        detected_object = self.start_detect([class_name], timeout)
+        if detected_object is not None:
             perform_click(detected_object['bbox'])
 
     def detect_and_click_any(self, class_names, perform_click):
@@ -132,12 +135,10 @@ class WindowDetect:
         :param class_names: 要检测和点击的物体的类别名称列表。
         :param perform_click: 用于执行点击操作的函数。
         """
-        for class_name in class_names:
-            self.class_names = class_name
-            detected_object = self.start_detect()
-            if detected_object is not None and detected_object['class_name'] == self.class_names:
-                perform_click(detected_object['bbox'])
-                break  # 如果已经执行了点击操作，就跳出循环
+        detected_object = self.start_detect(class_names)
+        if detected_object is not None:
+            perform_click(detected_object['bbox'])
+
 
     def detect_and_click_priority(self, class_priorities, perform_click):
         """
@@ -151,13 +152,13 @@ class WindowDetect:
         """
         # 按优先级对类别进行排序，优先级高的类别排在前面
         sorted_class_priorities = sorted(class_priorities.items(), key=lambda x: x[1], reverse=True)
+        class_names = [name for name, _ in sorted_class_priorities]
+        
+        detected_object = self.start_detect(class_names)
+        if detected_object is not None:
+            perform_click(detected_object['bbox'])
 
-        for class_name, _ in sorted_class_priorities:
-            self.class_names = class_name
-            detected_object = self.start_detect()
-            if detected_object is not None and detected_object['class_name'] == self.class_names:
-                perform_click(detected_object['bbox'])
-                break    
+
 
 
     def perform_click(self, bbox, generate_click_position):

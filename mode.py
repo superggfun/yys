@@ -30,6 +30,6 @@ class Mode(WindowDetect):
             self.detect_and_click("tupo_new", self.perform_click_center)
             self.detect_and_click("jingong", self.perform_click_center)
             self.detect_and_click("zhunbei", self.perform_click_center)
-            self.detect_and_click_any(["hun", "tupo_fail"], self.perform_click_center)
+            self.detect_and_click_any(["tupo_fail", "hun"], self.perform_click_all)
             time.sleep(1)
-            self.detect_and_click("hun", self.perform_click_center, 2)
+            self.detect_and_click("hun", self.perform_click_all, 1)
