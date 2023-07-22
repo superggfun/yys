@@ -7,7 +7,6 @@
 ```bash
 pip install -r requirements.txt
 ```
-然后，您需要更改`class_names`变量，以决定识别元素的顺序。例如，如果你想先识别并点击体力（'tili'）, 你可以将class_names设置为 ['tili']。
 
 完成设置后，您就可以启动程序了：
 

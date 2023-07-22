@@ -74,16 +74,23 @@ class WindowDetect:
                 image = image[None]
         return image
 
-    def start_detect(self):
+    def start_detect(self, timeout=None):
         """
         进行物体检测，并返回检测到的物体的列表。
 
+        :param timeout: 超时时间（秒）。如果设置了超时时间，将在超时时间内返回None。
         :return: 一个字典列表，每个字典代表一个检测到的物体，包含类别名称，边界框和置信度。
         """
+        start_time = time.time() if timeout is not None else None
 
         for path, image, im0s, _ in self.dataset:
             # 延迟检测
             time.sleep(0.5)
+
+            # 检查是否超时
+            if start_time is not None and time.time() - start_time > timeout:
+                break
+
             image = self.preprocess_image(image)
             # 推断
             with self.time_profile[1]:
@@ -105,17 +112,52 @@ class WindowDetect:
                             return {'class_name': self.class_names, 'bbox': xyxy, 'confidence': conf}
         return None
 
-    def detect_and_click(self, class_name, perform_click):
+    def detect_and_click(self, class_name, perform_click, timeout=None):
         """
         进行物体检测，并在检测到给定类别的物体时执行点击操作。
 
         :param class_name: 要检测和点击的物体的类别名称。
         :param perform_click: 用于执行点击操作的函数。
+        :param timeout: 超时时间（秒）。如果为None，则没有超时时间。
         """
         self.class_names = class_name
-        detected_object = self.start_detect()
+        detected_object = self.start_detect(timeout)
         if detected_object is not None and detected_object['class_name'] == self.class_names:
             perform_click(detected_object['bbox'])
+
+    def detect_and_click_any(self, class_names, perform_click):
+        """
+        进行物体检测，并在检测到给定类别列表中的任意物体时执行点击操作。
+
+        :param class_names: 要检测和点击的物体的类别名称列表。
+        :param perform_click: 用于执行点击操作的函数。
+        """
+        for class_name in class_names:
+            self.class_names = class_name
+            detected_object = self.start_detect()
+            if detected_object is not None and detected_object['class_name'] == self.class_names:
+                perform_click(detected_object['bbox'])
+                break  # 如果已经执行了点击操作，就跳出循环
+
+    def detect_and_click_priority(self, class_priorities, perform_click):
+        """
+        对指定的多个类别进行物体检测，并在检测到优先级最高的类别的物体时执行点击操作。
+
+        优先级通过传递的字典来确定。字典的键为类别名称，值为优先级数值。优先级数值越大，优先级越高。
+        例如，传入 {"cat": 1, "dog": 2, "bird": 3}，"bird"将具有最高的优先级，其次是"dog"，最后是"cat"。
+
+        :param class_priorities: 一个字典，其中的键是类别名称，值是对应的优先级。
+        :param perform_click: 用于执行点击操作的函数。
+        """
+        # 按优先级对类别进行排序，优先级高的类别排在前面
+        sorted_class_priorities = sorted(class_priorities.items(), key=lambda x: x[1], reverse=True)
+
+        for class_name, _ in sorted_class_priorities:
+            self.class_names = class_name
+            detected_object = self.start_detect()
+            if detected_object is not None and detected_object['class_name'] == self.class_names:
+                perform_click(detected_object['bbox'])
+                break    
 
 
     def perform_click(self, bbox, generate_click_position):
