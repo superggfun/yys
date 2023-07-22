@@ -16,7 +16,7 @@ python main.py
 
 ### 类别说明
 模型可以识别以下类别
-* 0: jiacheng（加成）
+*  0: jiacheng（加成）
 *  1: gold（金币）
 *  2: gouyu（勾玉）
 *  3: tili（体力）
@@ -38,3 +38,9 @@ python main.py
 *  19: yizhunbei（已准备）
 *  20: tongyi1（同意1）
 *  21: tongyi2（同意2）
+*  22: tupo_win（已突破）
+*  23: tupo_loss（已突破但打不过）
+*  24: tupo_new（未突破）
+*  25: tupo_fail（突破失败）
+*  26: shuaxin（刷新）
+*  27: jingong（进攻）
