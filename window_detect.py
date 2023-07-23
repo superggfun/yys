@@ -14,6 +14,8 @@ from models.common import DetectMultiBackend
 from utils.dataloaders import LoadScreenshots
 from utils.general import (Profile, check_img_size, non_max_suppression, scale_boxes)
 from utils.torch_utils import select_device
+from win32api import MAKELONG, SendMessage
+from win32con import WM_LBUTTONUP, WM_LBUTTONDOWN, WM_ACTIVATE, WA_ACTIVE
 
 
 FILE = Path(__file__).resolve()
@@ -42,17 +44,18 @@ class WindowDetect:
     agnostic_nms = False
     max_det = 1000  # 最大检测数量
 
-    def __init__(self, window_name):
+    def __init__(self, window_name, use_sct=True):
         """
         初始化WindowDetect对象。
 
         :param window_name: 窗口名称。
-        :param imgsz: 输入图像的大小。
+        :param use_sct: 是否使用 mss 库（不能遮挡）进行截图，默认为 True，如果为 False，将使用 Windows API 进行后台截图
         """
         self.window_name = window_name
         self.imgsz = WindowDetect.imgsz
         self.time_profile = (Profile(), Profile(), Profile())
         self.class_names = ""
+        self.use_sct = use_sct
 
         # 如果模型还没有被加载，则进行加载
         if WindowDetect.model is None:
@@ -62,7 +65,9 @@ class WindowDetect:
 
             # Warmup the model
             WindowDetect.model.warmup(imgsz=(1 if WindowDetect.pytorch_tensor or WindowDetect.model.triton else 1, 3, *self.imgsz))
-        self.dataset = LoadScreenshots(self.window_name, img_size=self.imgsz, stride=WindowDetect.stride, auto=WindowDetect.pytorch_tensor)
+
+        # use_sct 是否使用 mss 库进行截图
+        self.dataset = LoadScreenshots(self.window_name, img_size=self.imgsz, stride=WindowDetect.stride, auto=WindowDetect.pytorch_tensor, use_sct=self.use_sct)
 
     def preprocess_image(self, image):
         """对图像进行预处理"""
@@ -113,9 +118,6 @@ class WindowDetect:
                             return {'class_name': self.names[int(cls)], 'bbox': xyxy, 'confidence': conf}
         return None
 
-
-
-
     def detect_and_click(self, class_name, perform_click, timeout=None):
         """
         进行物体检测，并在检测到给定类别的物体时执行点击操作。
@@ -139,7 +141,6 @@ class WindowDetect:
         if detected_object is not None:
             perform_click(detected_object['bbox'])
 
-
     def detect_and_click_priority(self, class_priorities, perform_click):
         """
         对指定的多个类别进行物体检测，并在检测到优先级最高的类别的物体时执行点击操作。
@@ -153,17 +154,55 @@ class WindowDetect:
         # 按优先级对类别进行排序，优先级高的类别排在前面
         sorted_class_priorities = sorted(class_priorities.items(), key=lambda x: x[1], reverse=True)
         class_names = [name for name, _ in sorted_class_priorities]
-        
         detected_object = self.start_detect(class_names)
         if detected_object is not None:
             perform_click(detected_object['bbox'])
 
-
-
-
     def perform_click(self, bbox, generate_click_position):
         """
         执行点击操作。根据给定的生成点击位置的函数，在物体的特定区域进行点击。
+        根据 use_sct 参数的设置，选择前台或者后台点击。
+
+        :param bbox: 物体的边界框。
+        :param generate_click_position: 用于生成点击位置的函数。
+        """
+        if self.use_sct:
+            self.perform_click_foreground(bbox, generate_click_position)
+        else:
+            self.perform_click_background(bbox, generate_click_position)
+
+    def perform_click_background(self, bbox, generate_click_position):
+        """
+        执行后台点击操作。根据给定的生成点击位置的函数，在物体的特定区域进行点击。
+
+        :param bbox: 物体的边界框。
+        :param generate_click_position: 用于生成点击位置的函数。
+        """
+        # 获取点击位置
+        click_x, click_y = generate_click_position(bbox)
+
+        # 获取目标窗口句柄
+        hwnd = self.dataset.handle
+
+        # 生成点击持续时间（0.5到0.75秒之间）
+        sleep_time = random.uniform(0.5, 0.75)
+
+        # 休眠随机时间
+        time.sleep(sleep_time)
+
+        # 计算点击位置
+        long_position = MAKELONG(int(click_x)-self.dataset.left, int(click_y)-self.dataset.top)
+        print(long_position)
+
+        # 发送点击事件
+        SendMessage(hwnd, WM_ACTIVATE, WA_ACTIVE, 0)
+        SendMessage(hwnd, WM_LBUTTONDOWN, 0, long_position)  # 模拟鼠标按下
+        time.sleep(random.uniform(0.16, 0.25))  # 点击弹起改为随机
+        SendMessage(hwnd, WM_LBUTTONUP, 0, long_position)  # 模拟鼠标弹起
+
+    def perform_click_foreground(self, bbox, generate_click_position):
+        """
+        执行前台点击操作。根据给定的生成点击位置的函数，在物体的特定区域进行点击。
 
         :param bbox: 物体的边界框。
         :param generate_click_position: 用于生成点击位置的函数。
@@ -183,6 +222,7 @@ class WindowDetect:
         # 将鼠标移动到随机位置，持续随机时间
         pyautogui.moveTo(click_x, click_y, duration=duration)
         pyautogui.click()
+
 
     def perform_click_center(self, bbox):
         """

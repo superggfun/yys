@@ -38,6 +38,10 @@ from utils.torch_utils import torch_distributed_zero_first
 import ctypes.wintypes  # 导入需要的库
 import win32gui
 
+from win32con import SRCCOPY
+from win32gui import DeleteObject, GetWindowDC
+from win32ui import CreateDCFromHandle, CreateBitmap
+
 
 # Parameters
 HELP_URL = 'See https://docs.ultralytics.com/yolov5/tutorials/train_custom_data'
@@ -192,25 +196,53 @@ class _RepeatSampler:
 
 
 class LoadScreenshots:
-    def __init__(self, name, img_size=640, stride=32, auto=True, transforms=None):
-        check_requirements(('mss',))
-        import mss
+    """
+    屏幕截图类，用于从指定窗口捕获屏幕截图。
+
+    :param name: 待截屏的窗口名。
+    :param img_size: 截取的图像大小。
+    :param stride: 图像步长，用于调整图像尺寸以适配模型的要求。
+    :param auto: 是否自动将捕获的图像转为 PyTorch Tensor。
+    :param transforms: 要对捕获的图像执行的转换操作。
+    :param use_sct: 是否使用 mss 库进行截图，默认为 True，如果为 False，将使用 Windows API 进行后台截图。
+    """
+
+    def __init__(self, name: str, img_size: int = 640, stride: int = 32, auto: bool = True, transforms = None, use_sct: bool = True):
         self.name = name
         self.transforms = transforms
         self.auto = auto
         self.frame = 0
         self.img_size = img_size
         self.stride = stride
+        self.use_sct = use_sct
 
-        self.sct = mss.mss()
+        if use_sct:
+            check_requirements(('mss',))
+            import mss
+            self.sct = mss.mss()
 
     @staticmethod
-    def get_handle(name):
+    def get_handle(name: str) -> int:
+        """
+        通过窗口名称获取窗口句柄。
+
+        :param name: 窗口名称。
+        :raises ValueError: 如果没有找到名为 `name` 的窗口。
+        :return: 窗口句柄。
+        """
         handle = win32gui.FindWindow(0, name)
+        if handle == 0:
+            raise ValueError(f'没有找到名为 "{name}" 的窗口。')
         return handle
 
     @staticmethod
-    def get_window_rect(hwnd):
+    def get_window_rect(hwnd: int) -> tuple:
+        """
+        通过窗口句柄获取窗口矩形。
+
+        :param hwnd: 窗口句柄。
+        :return: 窗口矩形（左上角x，左上角y，右下角x，右下角y）。
+        """
         try:
             f = ctypes.windll.dwmapi.DwmGetWindowAttribute
         except WindowsError:
@@ -225,19 +257,74 @@ class LoadScreenshots:
               )
             return rect.left, rect.top, rect.right, rect.bottom
 
+    def window_screen(self, hwnd: int) -> np.ndarray:
+        """
+        使用 Windows API 对窗口进行截图。这种截图方式可以在后台进行，也就是说即使窗口被遮挡或者最小化，它仍然能够捕获窗口的内容。
+
+        :param hwnd: 窗口句柄。
+        :return: 截取的 RGB 图像。
+        """
+        # 获取窗口的设备上下文环境（DC）
+        hwnd_dc = GetWindowDC(hwnd)
+        # 创建设备描述表（DC）
+        mfc_dc = CreateDCFromHandle(hwnd_dc)
+        # 创建内存设备描述表（compatible DC）
+        save_dc = mfc_dc.CreateCompatibleDC()
+
+        # 获取窗口大小
+        left, top, right, bottom = self.get_window_rect(hwnd)
+        width = right - left
+        height = bottom - top
+
+        # 创建位图对象以保存图片
+        save_bit_map = CreateBitmap()
+        # 为位图对象分配存储空间
+        save_bit_map.CreateCompatibleBitmap(mfc_dc, width, height)
+
+        # 将截图保存到位图对象中
+        save_dc.SelectObject(save_bit_map)
+        # 从源设备描述表复制位图到目标设备描述表
+        save_dc.BitBlt((0, 0), (width, height), mfc_dc, (0, 0), SRCCOPY)
+
+        # 获取位图的像素信息
+        signed_ints_array = save_bit_map.GetBitmapBits(True)
+        im_opencv = np.frombuffer(signed_ints_array, dtype='uint8')
+
+        # 对像素信息进行重塑和颜色转换
+        im_opencv.shape = (height, width, 4)
+        im_opencv = cv2.cvtColor(im_opencv, cv2.COLOR_BGRA2RGB)
+
+        # 释放资源
+        DeleteObject(save_bit_map.GetHandle())
+        save_dc.DeleteDC()
+        mfc_dc.DeleteDC()
+
+        return im_opencv
+
+
     def __iter__(self):
         return self
 
-    def __next__(self):
+    def __next__(self) -> tuple:
+        """
+        获取下一帧的截图。
+
+        :return: 窗口句柄，经转换的图像，原图像，窗口信息字符串。
+        """
         # 每次截屏都重新获取窗口句柄和窗口坐标
         self.handle = self.get_handle(self.name)
         self.left, self.top, self.right, self.bottom = self.get_window_rect(self.handle)
         self.width = self.right - self.left
         self.height = self.bottom - self.top
-        self.monitor = {'left': self.left, 'top': self.top, 'width': self.width, 'height': self.height}
 
-        im0 = np.array(self.sct.grab(self.monitor))[:, :, :3]  # BGRA to BGR
-        s = f'window {self.handle} (LTWH): {self.left},{self.top},{self.width},{self.height}: '
+        # 使用新的 window_screen 方法进行截图，或者使用 sct.grab 方法
+        if self.use_sct:
+            self.monitor = {'left': self.left, 'top': self.top, 'width': self.width, 'height': self.height}
+            im0 = np.array(self.sct.grab(self.monitor))[:, :, :3]  # BGRA to BGR
+        else:
+            im0 = self.window_screen(self.handle)
+
+        s = f'窗口 {self.handle} (LTWH): {self.left},{self.top},{self.width},{self.height}: '
 
         if self.transforms:
             im = self.transforms(im0)  # transforms
@@ -246,7 +333,10 @@ class LoadScreenshots:
             im = im.transpose((2, 0, 1))[::-1]  # HWC to CHW, BGR to RGB
             im = np.ascontiguousarray(im)  # contiguous
         self.frame += 1
-        return str(self.handle), im, im0, s  # window handle, img, original img, im0s, s
+        return self.handle, im, im0, s  # 窗口句柄，经转换的图像，原图像，窗口信息字符串
+
+
+
 
 class LoadImages:
     # YOLOv5 image/video dataloader, i.e. `python detect.py --source image.jpg/vid.mp4`

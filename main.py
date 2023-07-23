@@ -1,7 +1,7 @@
 """
 @superggfun
 创建日期: 2023-07-18
-版本: 1.1.2
+版本: 1.2.0
 描述: 基于Yolov5的阴阳师识别点击程序。
 """
 
@@ -23,7 +23,7 @@ def is_admin():
     return False
 
 
-def run_as_admin():
+def run_as_admin():                 
     """
     以管理员权限重新运行程序
     """
@@ -34,11 +34,11 @@ def run():
     创建 Mode 实例并开始执行点击操作。
     """
     # Create an instance of ClickOperator
-    #window1 = Mode("阴阳师-网易游戏")
-    window1 = Mode("阴阳师 - MuMu模拟器")
+    #window1 = Mode("阴阳师-网易游戏")阴阳师 - MuMu模拟器
+    window1 = Mode("阴阳师-网易游戏", use_sct=False)
 
     # Call the click_operation method to start the click operations
-    window1.tupo()
+    window1.test()
 
 if __name__ == '__main__':
     if is_admin():
