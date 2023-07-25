@@ -35,12 +35,13 @@ def run():
     """
     # Create an instance of ClickOperator
     #window1 = Mode("阴阳师-网易游戏")阴阳师 - MuMu模拟器
-    window1 = Mode("阴阳师-网易游戏", use_sct=False)
+    window1 = Mode("阴阳师-网易游戏", use_sct=True)
 
     # Call the click_operation method to start the click operations
-    window1.test()
+    window1.fuben()
 
 if __name__ == '__main__':
+    #run()
     if is_admin():
         run()
     else:
