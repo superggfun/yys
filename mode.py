@@ -39,7 +39,7 @@ class Mode(WindowDetect):
         执行点击操作。该方法首先进行物体检测，然后按照给定的类别顺序对检测到的物体进行点击操作。
         """
         while True:  # 无限循环，持续进行对象检测和点击操作
-            self.detect_and_click("instances_27", self.perform_click_center, 3)
+            self.detect_and_click("instances_28", self.perform_click_center, 3)
             print(1)
             self.detect_and_click("tansuo_botton", self.perform_click_center)
             print(2)
@@ -52,19 +52,17 @@ class Mode(WindowDetect):
                     self.swipe_screen()
                     continue
                 #if self.detect_and_click("zhunbei", self.perform_click_center, 5):
-                    print(7)
-                    continue
-                if not self.detect_and_click("hun", self.perform_click_all, 15):
+                #    print(7)
+                #    continue
+                if not self.detect_and_click("hun", self.perform_click_all, 30):
                     continue
                 print(4)
                 if name == "attack_head":
                     print(5)
-                    self.detect_and_click("gift", self.perform_click_center, 1)
-                    self.detect_and_click("gain_gift", self.perform_click_all, 2)
-                    self.detect_and_click("gift", self.perform_click_center, 1)
-                    self.detect_and_click("gain_gift", self.perform_click_all, 1)
-                    self.detect_and_click("gift", self.perform_click_center, 1)
-                    self.detect_and_click("gain_gift", self.perform_click_all, 1)
+                    time.sleep(random.uniform(1, 2))
+                    for _ in range(4):
+                        self.detect_and_click("gift", self.perform_click_center, 1)
+                        self.detect_and_click("gain_gift", self.perform_click_all, 1)
                     break  # 如果检测到 "attack_head"，则跳出内部循环
                 print(6)
                 time.sleep(random.uniform(1, 2))  # 在循环结束时暂停，以避免过快的循环

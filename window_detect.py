@@ -321,7 +321,7 @@ class WindowDetect:
             left, top, right, bottom = (self.dataset.left + 0.05 * self.dataset.width,
                                         self.dataset.top + 0.25 * self.dataset.height,
                                         self.dataset.left + 0.15 * self.dataset.width,
-                                        self.dataset.top + 0.85 * self.dataset.height)
+                                        self.dataset.top + 0.65 * self.dataset.height)
         else:
             left, top, right, bottom = (self.dataset.left + 0.85 * self.dataset.width,
                                         self.dataset.top + 0.25 * self.dataset.height,
