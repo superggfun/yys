@@ -34,6 +34,18 @@ class Mode(WindowDetect):
             time.sleep(1)
             self.detect_and_click("hun", self.perform_click_all, 1)
 
+    def chi(self):
+        """
+        执行点击操作。该方法首先进行物体检测，然后按照给定的类别顺序对检测到的物体进行点击操作。
+        """
+        while True:  # 无限循环，持续进行对象检测和点击操作
+            self.detect_and_click("tiaozhan_chi", self.perform_click_center)
+            self.detect_and_click("zhunbei", self.perform_click_center)
+            self.detect_and_click("win", self.perform_click_center)
+            self.detect_and_click("hun", self.perform_click_all)
+
+
+
     def fuben(self):
         """
         执行点击操作。该方法首先进行物体检测，然后按照给定的类别顺序对检测到的物体进行点击操作。
@@ -47,6 +59,7 @@ class Mode(WindowDetect):
                 print(3)
                 #self.swipe_screen()
                 name = self.detect_and_click_priority({"attack_head": 2, "attack": 1}, self.perform_click_center, no_delay=True)
+                self.detect_and_click("attack", self.perform_click_center, 1)
                 if name is None:  # 添加了错误处理，如果detect_and_click_priority函数返回None（可能是超时或者出错），那么打印一个消息并跳出内部循环
                     print("No Detection!")
                     self.swipe_screen()
@@ -54,21 +67,22 @@ class Mode(WindowDetect):
                 #if self.detect_and_click("zhunbei", self.perform_click_center, 5):
                 #    print(7)
                 #    continue
-                if not self.detect_and_click("hun", self.perform_click_all, 30):
+                if not self.detect_and_click("win", self.perform_click_all, 25):
                     continue
+                self.detect_and_click("hun", self.perform_click_all, 2)
                 print(4)
                 if name == "attack_head":
                     print(5)
-                    time.sleep(random.uniform(1, 2))
+                    time.sleep(2)
                     for _ in range(4):
                         self.detect_and_click("gift", self.perform_click_center, 1)
                         self.detect_and_click("gain_gift", self.perform_click_all, 1)
                     break  # 如果检测到 "attack_head"，则跳出内部循环
                 print(6)
-                time.sleep(random.uniform(1, 2))  # 在循环结束时暂停，以避免过快的循环
+                time.sleep(random.uniform(0, 1))  # 在循环结束时暂停，以避免过快的循环
 
 
     def t(self):
         while True:  # 无限循环，持续进行对象检测和点击操作
-            self.detect_and_click("instances_27", self.perform_click_center)
+            self.detect_and_click("tili", self.perform_click_center)
 

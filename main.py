@@ -38,7 +38,7 @@ def run():
     window1 = Mode("阴阳师 - MuMu模拟器", use_sct=True)
 
     # Call the click_operation method to start the click operations
-    window1.fuben()
+    window1.chi()
 
 if __name__ == '__main__':
     #run()
