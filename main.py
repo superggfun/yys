@@ -8,6 +8,7 @@
 import ctypes
 from sys import executable
 from mode import Mode
+import threading
 
 def is_admin():
     """
@@ -29,16 +30,23 @@ def run_as_admin():
     """
     ctypes.windll.shell32.ShellExecuteW(None, "runas", executable, __file__, None, 1)
 
+
+def start_mode_thread(window_name, method):
+    mode = Mode(window_name, use_sct=True)
+    thread = threading.Thread(target=method, args=(mode,), daemon=True)
+    thread.start()
+    return thread
+
 def run():
     """
     创建 Mode 实例并开始执行点击操作。
     """
-    # Create an instance of ClickOperator
-    #window1 = Mode("阴阳师-网易游戏")阴阳师 - MuMu模拟器
-    window1 = Mode("阴阳师 - MuMu模拟器", use_sct=True)
+    thread1 = start_mode_thread("阴阳师 - MuMu模拟器", Mode.test)
+    thread2 = start_mode_thread("阴阳师 - MuMu模拟器", Mode.test2)#阴阳师-网易游戏
+    
+    thread1.join()
+    thread2.join()
 
-    # Call the click_operation method to start the click operations
-    window1.fuben()
 
 if __name__ == '__main__':
     #run()

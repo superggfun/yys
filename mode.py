@@ -6,6 +6,7 @@ import time, random
 
 import time, random
 from object_interactor import ObjectInteractor
+import threading
 
 class Mode(ObjectInteractor):
     """
@@ -84,3 +85,7 @@ class Mode(ObjectInteractor):
     def test(self):
         while True:
             self.detect_and_click("tili", self.perform_click_center, stop_if_no_detect=True)
+
+    def test2(self):
+        while True:
+            self.detect_and_click("gouyu", self.perform_click_center, stop_if_no_detect=True)

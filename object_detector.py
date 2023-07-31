@@ -45,6 +45,8 @@ class ObjectDetector:
         self.time_profile = (Profile(), Profile(), Profile())
         self.class_names = ""
         self.use_sct = use_sct
+        # use_sct 是否使用 mss 库进行截图
+        self.dataset = LoadScreenshots(self.window_name, img_size=self.imgsz, stride=ObjectDetector.stride, auto=ObjectDetector.pytorch_tensor, use_sct=self.use_sct)
 
         # 如果模型还没有被加载，则进行加载
         if ObjectDetector.model is None:
@@ -54,9 +56,6 @@ class ObjectDetector:
 
             # Warmup the model
             ObjectDetector.model.warmup(imgsz=(1 if ObjectDetector.pytorch_tensor or ObjectDetector.model.triton else 1, 3, *self.imgsz))
-
-        # use_sct 是否使用 mss 库进行截图
-        self.dataset = LoadScreenshots(self.window_name, img_size=self.imgsz, stride=ObjectDetector.stride, auto=ObjectDetector.pytorch_tensor, use_sct=self.use_sct)
 
     def _preprocess_image(self, image):
         """对图像进行预处理"""
@@ -77,6 +76,7 @@ class ObjectDetector:
         :param stop_if_no_detect: 如果设置为True，在没有检测到对象时立即返回None。
         :return: 一个字典，代表一个检测到的物体，包含类别名称，边界框和置信度。
         """
+        
         start_time = time.time() if timeout is not None else None
         # 预处理类名列表，去除空白并唯一化
         class_names_set = set(name.strip() for name in class_names)

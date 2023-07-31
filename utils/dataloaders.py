@@ -16,6 +16,7 @@ from itertools import repeat
 from multiprocessing.pool import Pool, ThreadPool
 from pathlib import Path
 from threading import Thread
+import threading
 from urllib.parse import urlparse
 
 import numpy as np
@@ -207,6 +208,8 @@ class LoadScreenshots:
     :param use_sct: 是否使用 mss 库进行截图，默认为 True，如果为 False，将使用 Windows API 进行后台截图。
     """
 
+    _lock = threading.Lock()
+
     def __init__(self, name: str, img_size: int = 640, stride: int = 32, auto: bool = True, transforms = None, use_sct: bool = True):
         self.name = name
         self.transforms = transforms
@@ -318,11 +321,11 @@ class LoadScreenshots:
         self.height = self.bottom - self.top
 
         # 使用新的 window_screen 方法进行截图，或者使用 sct.grab 方法
-        if self.use_sct:
-            self.monitor = {'left': self.left, 'top': self.top, 'width': self.width, 'height': self.height}
-            im0 = np.array(self.sct.grab(self.monitor))[:, :, :3]  # BGRA to BGR
-        else:
-            im0 = self.window_screen(self.handle)
+        #if self.use_sct:
+        #    self.monitor = {'left': self.left, 'top': self.top, 'width': self.width, 'height': self.height}
+        #    im0 = np.array(self.sct.grab(self.monitor))[:, :, :3]  # BGRA to BGR
+        #else:
+        im0 = self.window_screen(self.handle)
 
         s = f'窗口 {self.handle} (LTWH): {self.left},{self.top},{self.width},{self.height}: '
 

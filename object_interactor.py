@@ -5,12 +5,16 @@ import time, random
 from object_detector import ObjectDetector
 from win32api import MAKELONG, SendMessage
 from win32con import WM_LBUTTONUP, WM_LBUTTONDOWN, WM_ACTIVATE, WA_ACTIVE
+import threading
 
 
 class ObjectInteractor:
     """
     ObjectInteractor类，用于进行物体的交互操作。
     """
+    # 类级别的信号量，所有实例共享
+    click_semaphore = threading.Semaphore(1)
+
     def __init__(self, window_name, use_sct=True):
         """
         初始化ObjectInteractor对象。
@@ -93,7 +97,8 @@ class ObjectInteractor:
         :param double_click_probability: 是否有可能进行双击操作。默认为True。
         """
         if self.detector.use_sct:
-            self._perform_click_foreground(bbox, generate_click_position, no_delay, double_click_probability)
+            with ObjectInteractor.click_semaphore:
+                self._perform_click_foreground(bbox, generate_click_position, no_delay, double_click_probability)
         else:
             self._perform_click_background(bbox, generate_click_position)
 
