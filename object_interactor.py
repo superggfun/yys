@@ -1,126 +1,26 @@
-"""
-window_detect模块，提供了WindowDetect类，用于进行物体检测和点击操作。
-"""
 import time
 import random
-import sys
-import numpy as np
-import os
-from pathlib import Path
-
-import torch
 import pyautogui
-
-from models.common import DetectMultiBackend
-from utils.dataloaders import LoadScreenshots
-from utils.general import (Profile, check_img_size, non_max_suppression, scale_boxes)
-from utils.torch_utils import select_device
+import time, random
+from object_detector import ObjectDetector
 from win32api import MAKELONG, SendMessage
 from win32con import WM_LBUTTONUP, WM_LBUTTONDOWN, WM_ACTIVATE, WA_ACTIVE
 
 
-FILE = Path(__file__).resolve()
-ROOT = FILE.parents[0]  # YOLOv5 root directory
-if str(ROOT) not in sys.path:
-    sys.path.append(str(ROOT))  # add ROOT to PATH
-ROOT = Path(os.path.relpath(ROOT, Path.cwd()))  # relative
-
-
-class WindowDetect:
+class ObjectInteractor:
     """
-    WindowDetect类，用于进行物体检测和点击操作。
+    ObjectInteractor类，用于进行物体的交互操作。
     """
-    model = None
-    stride = None
-    names = None
-    pytorch_tensor = None
-    device = select_device('')
-    weights = ROOT / 'train/weights/best.pt'
-    data = 'data/coco128.yaml'
-    imgsz = (640, 640)
-
-    conf_thres = 0.7
-    iou_thres = 0.45
-    classes = None
-    agnostic_nms = False
-    max_det = 1000  # 最大检测数量
-
     def __init__(self, window_name, use_sct=True):
         """
-        初始化WindowDetect对象。
+        初始化ObjectInteractor对象。
 
-        :param window_name: 窗口名称。
-        :param use_sct: 是否使用 mss 库（不能遮挡）进行截图，默认为 True，如果为 False，将使用 Windows API 进行后台截图
+        :param detector: 用于进行物体检测的ObjectDetector实例。
         """
-        self.window_name = window_name
-        self.imgsz = WindowDetect.imgsz
-        self.time_profile = (Profile(), Profile(), Profile())
-        self.class_names = ""
-        self.use_sct = use_sct
+        self.detector = ObjectDetector(window_name, use_sct)
+        self.dataset = self.detector.dataset
 
-        # 如果模型还没有被加载，则进行加载
-        if WindowDetect.model is None:
-            WindowDetect.model = DetectMultiBackend(WindowDetect.weights, device=WindowDetect.device, dnn=False, data=WindowDetect.data, fp16=False)
-            WindowDetect.stride, WindowDetect.names, WindowDetect.pytorch_tensor = WindowDetect.model.stride, WindowDetect.model.names, WindowDetect.model.pt
-            self.imgsz = check_img_size(WindowDetect.imgsz, s=WindowDetect.stride)  # Check image size
-
-            # Warmup the model
-            WindowDetect.model.warmup(imgsz=(1 if WindowDetect.pytorch_tensor or WindowDetect.model.triton else 1, 3, *self.imgsz))
-
-        # use_sct 是否使用 mss 库进行截图
-        self.dataset = LoadScreenshots(self.window_name, img_size=self.imgsz, stride=WindowDetect.stride, auto=WindowDetect.pytorch_tensor, use_sct=self.use_sct)
-
-    def preprocess_image(self, image):
-        """对图像进行预处理"""
-        with self.time_profile[0]:
-            image = torch.from_numpy(image).to(self.model.device)
-            image = image.half() if self.model.fp16 else image.float()
-            image /= 255
-            if len(image.shape) == 3:
-                image = image[None]
-        return image
-
-    def start_detect(self, class_names, timeout=None):
-        """
-        进行物体检测，并返回检测到的物体。
-
-        :param class_names: 要检测的物体的类别名称列表。
-        :param timeout: 超时时间（秒）。如果设置了超时时间，将在超时时间内返回None。
-        :return: 一个字典，代表一个检测到的物体，包含类别名称，边界框和置信度。
-        """
-        start_time = time.time() if timeout is not None else None
-
-        for path, image, im0s, _ in self.dataset:
-            # 延迟检测
-            time.sleep(0.2)
-
-            # 检查是否超时
-            if start_time is not None and time.time() - start_time > timeout:
-                break
-
-            image = self.preprocess_image(image)
-            # 推断
-            with self.time_profile[1]:
-                pred = self.model(image, augment=False, visualize=False)
-            # 进行NMS
-            with self.time_profile[2]:
-                pred = non_max_suppression(pred, WindowDetect.conf_thres, WindowDetect.iou_thres, WindowDetect.classes,
-                                        WindowDetect.agnostic_nms, max_det=WindowDetect.max_det)
-            # 处理检测结果
-            for _, det in enumerate(pred):
-                if len(det):
-                    _, im0, _ = path, im0s.copy(), getattr(self.dataset, 'frame', 0)
-                    # 缩放边界框
-                    det[:, :4] = scale_boxes(image.shape[2:], det[:, :4], im0.shape).round()
-                    # 收集检测到的物体
-                    for *xyxy, conf, cls in reversed(det):
-                        if self.names[int(cls)].strip() in [name.strip() for name in class_names]:
-                            print({'class_name': self.names[int(cls)], 'bbox': xyxy, 'confidence': conf})
-                            return {'class_name': self.names[int(cls)], 'bbox': xyxy, 'confidence': conf}
-        return None
-
-
-    def detect_and_click(self, class_name, perform_click, timeout=None, no_delay=False, double_click_probability=True):
+    def detect_and_click(self, class_name, perform_click, timeout=None, no_delay=False, double_click_probability=True, stop_if_no_detect=False):
         """
         进行物体检测，并在检测到给定类别的物体时执行点击操作。
 
@@ -129,14 +29,16 @@ class WindowDetect:
         :param timeout: 超时时间（秒）。如果为None，则没有超时时间。
         :param no_delay: 是否在点击后立即返回，不进行延迟。默认为False。
         :param double_click_probability: 是否有可能进行双击操作。默认为True。
+        :param stop_if_no_detect: 如果设置为True，在没有检测到对象时立即返回None。
         :return: 布尔值，如果检测到物体并执行了点击操作，则返回True，否则返回False。
         """
-        detected_object = self.start_detect([class_name], timeout)
+        detected_object = self.detector.start_detect([class_name], timeout, stop_if_no_detect)
         if detected_object:
-            perform_click(detected_object['bbox'], no_delay=no_delay, double_click_probability=double_click_probability)
+            perform_click(detected_object['bbox'], no_delay, double_click_probability)
         return detected_object is not None
 
-    def detect_and_click_any(self, class_names, perform_click, no_delay=False, double_click_probability=True):
+
+    def detect_and_click_any(self, class_names, perform_click, no_delay=False, double_click_probability=True, stop_if_no_detect=False):
         """
         进行物体检测，并在检测到给定类别列表中的任意物体时执行点击操作。
 
@@ -144,14 +46,15 @@ class WindowDetect:
         :param perform_click: 用于执行点击操作的函数。
         :param no_delay: 是否在点击后立即返回，不进行延迟。默认为False。
         :param double_click_probability: 是否有可能进行双击操作。默认为True。
+        :param stop_if_no_detect: 如果设置为True，在没有检测到对象时立即返回None。
         :return: 布尔值，如果检测到物体并执行了点击操作，则返回True，否则返回False。
         """
-        detected_object = self.start_detect(class_names)
+        detected_object = self.detector.start_detect(class_names, None, stop_if_no_detect)
         if detected_object:
-            perform_click(detected_object['bbox'], no_delay=no_delay, double_click_probability=double_click_probability)
+            perform_click(detected_object['bbox'], no_delay, double_click_probability, stop_if_no_detect)
         return detected_object is not None
 
-    def detect_and_click_priority(self, class_priorities, perform_click, no_delay=False, double_click_probability=True):
+    def detect_and_click_priority(self, class_priorities, perform_click, no_delay=False, double_click_probability=True, stop_if_no_detect=False):
         """
         对指定的多个类别进行物体检测，并在检测到优先级最高的类别的物体时执行点击操作。
 
@@ -162,6 +65,7 @@ class WindowDetect:
         :param perform_click: 用于执行点击操作的函数。
         :param no_delay: 是否在点击后立即返回，不进行延迟。默认为False。
         :param double_click_probability: 是否有可能进行双击操作。默认为True。
+        :param stop_if_no_detect: 如果设置为True，在没有检测到对象时立即返回None。
         :return: 如果检测到物体并执行了点击操作，则返回对应的类别名称，否则返回None。
         """
         # 按优先级对类别进行排序，优先级高的类别排在前面
@@ -169,9 +73,9 @@ class WindowDetect:
         
         # 逐个检测每一个类别
         for class_name, _ in sorted_class_priorities:
-            detected_object = self.start_detect([class_name], timeout=1)  # 设置一个较短的超时时间
+            detected_object = self.detector.start_detect([class_name], stop_if_no_detect=stop_if_no_detect, timeout=1)  # 设置一个较短的超时时间
             if detected_object:
-                perform_click(detected_object['bbox'], no_delay=no_delay, double_click_probability=double_click_probability)
+                perform_click(detected_object['bbox'], no_delay, double_click_probability)
                 return class_name  # 返回识别的类别名称
 
         return None  # 如果没有检测到任何物体，返回None
@@ -188,13 +92,13 @@ class WindowDetect:
         :param no_delay: 是否在点击后立即返回，不进行延迟。默认为False。
         :param double_click_probability: 是否有可能进行双击操作。默认为True。
         """
-        if self.use_sct:
-            self.perform_click_foreground(bbox, generate_click_position, no_delay, double_click_probability)
+        if self.detector.use_sct:
+            self._perform_click_foreground(bbox, generate_click_position, no_delay, double_click_probability)
         else:
-            self.perform_click_background(bbox, generate_click_position)
+            self._perform_click_background(bbox, generate_click_position)
 
 
-    def perform_click_background(self, bbox, generate_click_position):
+    def _perform_click_background(self, bbox, generate_click_position):
         """
         执行后台点击操作。根据给定的生成点击位置的函数，在物体的特定区域进行点击。
 
@@ -205,7 +109,7 @@ class WindowDetect:
         click_x, click_y = generate_click_position(bbox)
 
         # 获取目标窗口句柄
-        hwnd = self.dataset.handle
+        hwnd = self.detector.dataset.handle
 
         # 生成点击持续时间（0.5到0.75秒之间）
         sleep_time = random.uniform(0.5, 0.75)
@@ -223,7 +127,7 @@ class WindowDetect:
         time.sleep(random.uniform(0.16, 0.25))  # 点击弹起改为随机
         SendMessage(hwnd, WM_LBUTTONUP, 0, long_position)  # 模拟鼠标弹起
 
-    def perform_click_foreground(self, bbox, generate_click_position, no_delay=False, double_click_probability=True):
+    def _perform_click_foreground(self, bbox, generate_click_position, no_delay=False, double_click_probability=True):
         """
         执行前台点击操作。根据给定的生成点击位置的函数，在物体的特定区域进行点击。
 
