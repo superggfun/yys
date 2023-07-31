@@ -65,3 +65,5 @@ python main.py
 *  46: gain_gift
 *  47: back
 *  48: instances_27
+*  49: instances_28
+*  50: tiaozhan_chi
