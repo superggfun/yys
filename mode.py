@@ -2,18 +2,14 @@
 Mode模块，提供了Mode类，它是WindowDetect类的子类，实现了特定的点击操作。
 """
 
-import time, random
-
-import time, random
+import time
+import random
 from object_interactor import ObjectInteractor
-import threading
 
 class Mode(ObjectInteractor):
     """
     Mode类，ObjectInteractor的子类，实现了特定的点击操作。
     """
-    def __init__(self, window_name, use_sct=True):
-        super().__init__(window_name, use_sct)
 
     def yuhun(self):
         """
@@ -23,7 +19,7 @@ class Mode(ObjectInteractor):
             self.detect_and_click("win", self.perform_click_center)
             self.detect_and_click("hun", self.perform_click_all)
             self.detect_and_click("tiaozhan_on", self.perform_click_center)
-    
+
     def tupo(self):
         """
         执行点击操作。该方法首先进行物体检测，然后按照给定的类别顺序对检测到的物体进行点击操作。

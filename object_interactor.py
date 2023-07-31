@@ -1,11 +1,16 @@
+"""
+ObjectInteractor类，用于进行物体的交互操作。
+"""
 import time
 import random
+import threading
 import pyautogui
-import time, random
-from object_detector import ObjectDetector
+
 from win32api import MAKELONG, SendMessage
 from win32con import WM_LBUTTONUP, WM_LBUTTONDOWN, WM_ACTIVATE, WA_ACTIVE
-import threading
+
+from object_detector import ObjectDetector
+
 
 
 class ObjectInteractor:
@@ -71,10 +76,10 @@ class ObjectInteractor:
         :param double_click_probability: 是否有可能进行双击操作。默认为True。
         :param stop_if_no_detect: 如果设置为True，在没有检测到对象时立即返回None。
         :return: 如果检测到物体并执行了点击操作，则返回对应的类别名称，否则返回None。
-        """
+     WW   """
         # 按优先级对类别进行排序，优先级高的类别排在前面
         sorted_class_priorities = sorted(class_priorities.items(), key=lambda x: x[1], reverse=True)
-        
+
         # 逐个检测每一个类别
         for class_name, _ in sorted_class_priorities:
             detected_object = self.detector.start_detect([class_name], stop_if_no_detect=stop_if_no_detect, timeout=1)  # 设置一个较短的超时时间
@@ -242,7 +247,7 @@ class ObjectInteractor:
         random_y = random.uniform(top, bottom)
 
         return random_x, random_y
-    
+
     def swipe_screen(self, is_left_to_right=False):
         """
         在当前窗口内随机执行一个滑动操作。

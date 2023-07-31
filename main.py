@@ -7,8 +7,9 @@
 
 import ctypes
 from sys import executable
-from mode import Mode
 import threading
+from mode import Mode
+
 
 def is_admin():
     """
@@ -24,7 +25,7 @@ def is_admin():
     return False
 
 
-def run_as_admin():                 
+def run_as_admin():
     """
     以管理员权限重新运行程序
     """
@@ -32,6 +33,16 @@ def run_as_admin():
 
 
 def start_mode_thread(window_name, method):
+    """
+    该函数用于创建一个新的线程来运行指定的方法。
+
+    参数:
+    window_name: 要在其中运行方法的窗口名称。
+    method: 在新线程中运行的函数或方法。
+
+    返回:
+    返回创建的线程对象。
+    """
     mode = Mode(window_name, use_sct=True)
     thread = threading.Thread(target=method, args=(mode,), daemon=True)
     thread.start()
@@ -43,13 +54,12 @@ def run():
     """
     thread1 = start_mode_thread("阴阳师-网易游戏", Mode.test)#阴阳师 - MuMu模拟器
     thread2 = start_mode_thread("阴阳师 - MuMu模拟器", Mode.test)#阴阳师-网易游戏
-    
+
     thread1.join()
     thread2.join()
-    
+
     #window1 = Mode("阴阳师-网易游戏",use_sct=False)
     #window1.test()
-
 
 
 if __name__ == '__main__':

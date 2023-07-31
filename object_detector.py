@@ -1,3 +1,6 @@
+"""
+这个模块包含 ObjectDetector 类，用于进行物体检测。
+"""
 import sys
 import os
 from pathlib import Path
@@ -45,7 +48,6 @@ class ObjectDetector:
         self.time_profile = (Profile(), Profile(), Profile())
         self.class_names = ""
         self.use_sct = use_sct
-        
 
         # 如果模型还没有被加载，则进行加载
         if ObjectDetector.model is None:
@@ -78,13 +80,13 @@ class ObjectDetector:
         :param stop_if_no_detect: 如果设置为True，在没有检测到对象时立即返回None。
         :return: 一个字典，代表一个检测到的物体，包含类别名称，边界框和置信度。
         """
-        
+
         start_time = time.time() if timeout is not None else None
         # 预处理类名列表，去除空白并唯一化
         class_names_set = set(name.strip() for name in class_names)
 
         for path, image, im0s, _ in self.dataset:
-            
+
             # 延迟检测
             time.sleep(0.2)
             # 检查是否超时
