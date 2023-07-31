@@ -88,4 +88,4 @@ class Mode(ObjectInteractor):
 
     def test2(self):
         while True:
-            self.detect_and_click("gouyu", self.perform_click_center, stop_if_no_detect=True)
+            self.detect_and_click("gold", self.perform_click_center, stop_if_no_detect=True)

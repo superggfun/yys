@@ -41,11 +41,15 @@ def run():
     """
     创建 Mode 实例并开始执行点击操作。
     """
-    thread1 = start_mode_thread("阴阳师 - MuMu模拟器", Mode.test)
-    thread2 = start_mode_thread("阴阳师 - MuMu模拟器", Mode.test2)#阴阳师-网易游戏
+    thread1 = start_mode_thread("阴阳师-网易游戏", Mode.test)#阴阳师 - MuMu模拟器
+    thread2 = start_mode_thread("阴阳师 - MuMu模拟器", Mode.test)#阴阳师-网易游戏
     
     thread1.join()
     thread2.join()
+    
+    #window1 = Mode("阴阳师-网易游戏",use_sct=False)
+    #window1.test()
+
 
 
 if __name__ == '__main__':

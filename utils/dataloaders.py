@@ -18,7 +18,7 @@ from pathlib import Path
 from threading import Thread
 import threading
 from urllib.parse import urlparse
-
+import mss
 import numpy as np
 import psutil
 import torch
@@ -217,12 +217,7 @@ class LoadScreenshots:
         self.frame = 0
         self.img_size = img_size
         self.stride = stride
-        self.use_sct = use_sct
-
-        if use_sct:
-            check_requirements(('mss',))
-            import mss
-            self.sct = mss.mss()
+        self.use_sct = use_sct          
 
     @staticmethod
     def get_handle(name: str) -> int:
@@ -319,13 +314,15 @@ class LoadScreenshots:
         self.left, self.top, self.right, self.bottom = self.get_window_rect(self.handle)
         self.width = self.right - self.left
         self.height = self.bottom - self.top
-
+        
         # 使用新的 window_screen 方法进行截图，或者使用 sct.grab 方法
-        #if self.use_sct:
-        #    self.monitor = {'left': self.left, 'top': self.top, 'width': self.width, 'height': self.height}
-        #    im0 = np.array(self.sct.grab(self.monitor))[:, :, :3]  # BGRA to BGR
-        #else:
-        im0 = self.window_screen(self.handle)
+        if self.use_sct:
+            check_requirements(('mss',))
+            self.sct = mss.mss()
+            self.monitor = {'left': self.left, 'top': self.top, 'width': self.width, 'height': self.height}       
+            im0 = np.array(self.sct.grab(self.monitor))[:, :, :3]  # BGRA to BGR
+        else:
+            im0 = self.window_screen(self.handle)
 
         s = f'窗口 {self.handle} (LTWH): {self.left},{self.top},{self.width},{self.height}: '
 

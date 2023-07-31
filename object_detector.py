@@ -45,8 +45,7 @@ class ObjectDetector:
         self.time_profile = (Profile(), Profile(), Profile())
         self.class_names = ""
         self.use_sct = use_sct
-        # use_sct 是否使用 mss 库进行截图
-        self.dataset = LoadScreenshots(self.window_name, img_size=self.imgsz, stride=ObjectDetector.stride, auto=ObjectDetector.pytorch_tensor, use_sct=self.use_sct)
+        
 
         # 如果模型还没有被加载，则进行加载
         if ObjectDetector.model is None:
@@ -56,6 +55,9 @@ class ObjectDetector:
 
             # Warmup the model
             ObjectDetector.model.warmup(imgsz=(1 if ObjectDetector.pytorch_tensor or ObjectDetector.model.triton else 1, 3, *self.imgsz))
+
+        # use_sct 是否使用 mss 库进行截图
+        self.dataset = LoadScreenshots(self.window_name, img_size=self.imgsz, stride=ObjectDetector.stride, auto=ObjectDetector.pytorch_tensor, use_sct=self.use_sct)
 
     def _preprocess_image(self, image):
         """对图像进行预处理"""
@@ -82,6 +84,7 @@ class ObjectDetector:
         class_names_set = set(name.strip() for name in class_names)
 
         for path, image, im0s, _ in self.dataset:
+            
             # 延迟检测
             time.sleep(0.2)
             # 检查是否超时
