@@ -28,6 +28,7 @@ import yaml
 from PIL import ExifTags, Image, ImageOps
 from torch.utils.data import DataLoader, Dataset, dataloader, distributed
 from tqdm import tqdm
+from typing import Literal
 
 from utils.augmentations import (Albumentations, augment_hsv, classify_albumentations, classify_transforms, copy_paste,
                                  letterbox, mixup, random_perspective)
@@ -42,6 +43,8 @@ import win32gui
 from win32con import SRCCOPY
 from win32gui import DeleteObject, GetWindowDC
 from win32ui import CreateDCFromHandle, CreateBitmap
+
+from ppadb.client import Client as AdbClient
 
 
 # Parameters
@@ -195,6 +198,17 @@ class _RepeatSampler:
         while True:
             yield from iter(self.sampler)
 
+class GetHandleError(Exception):
+    """当获取窗口句柄出错时抛出。"""
+
+class GetWindowRectError(Exception):
+    """当获取窗口坐标出错时抛出。"""
+
+class ScreenCapError(Exception):
+    """当截屏出错时抛出。"""
+
+class TransformError(Exception):
+    """当图像转换出错时抛出。"""
 
 class LoadScreenshots:
     """
@@ -205,19 +219,19 @@ class LoadScreenshots:
     :param stride: 图像步长，用于调整图像尺寸以适配模型的要求。
     :param auto: 是否自动将捕获的图像转为 PyTorch Tensor。
     :param transforms: 要对捕获的图像执行的转换操作。
-    :param use_sct: 是否使用 mss 库进行截图，默认为 True，如果为 False，将使用 Windows API 进行后台截图。
+    :param mode: 'mss', 'win_api' 或 'adb'。定义用于截取屏幕的方法。
     """
 
-    _lock = threading.Lock()
+    _lock = threading.Lock()    # 用于同步对 mss.grab 的调用
 
-    def __init__(self, name: str, img_size: int = 640, stride: int = 32, auto: bool = True, transforms = None, use_sct: bool = True):
+    def __init__(self, name: str, img_size: int = 640, stride: int = 32, auto: bool = True, transforms = None, mode: Literal['mss', 'win_api', 'adb'] = 'mss'):
         self.name = name
         self.transforms = transforms
         self.auto = auto
         self.frame = 0
         self.img_size = img_size
         self.stride = stride
-        self.use_sct = use_sct          
+        self.mode = mode
 
     @staticmethod
     def get_handle(name: str) -> int:
@@ -255,7 +269,7 @@ class LoadScreenshots:
               )
             return rect.left, rect.top, rect.right, rect.bottom
 
-    def window_screen(self, hwnd: int) -> np.ndarray:
+    def win_api_cap(self, hwnd: int) -> np.ndarray:
         """
         使用 Windows API 对窗口进行截图。这种截图方式可以在后台进行，也就是说即使窗口被遮挡或者最小化，它仍然能够捕获窗口的内容。
 
@@ -298,44 +312,86 @@ class LoadScreenshots:
         mfc_dc.DeleteDC()
 
         return im_opencv
+    
+    def process_image(self, im0):
+        """
+        将截取的图像进行一系列的转换。
+
+        :param im0: 原始图像。
+        :return: 转换后的图像。
+        """
+        im = letterbox(im0, self.img_size, stride=self.stride, auto=self.auto)[0]  # 填充调整大小
+        im = im.transpose((2, 0, 1))[::-1]  # HWC to CHW, BGR to RGB
+        im = np.ascontiguousarray(im)  # contiguous
+        return im
 
 
     def __iter__(self):
         return self
-
+    
     def __next__(self) -> tuple:
         """
         获取下一帧的截图。
 
         :return: 窗口句柄，经转换的图像，原图像，窗口信息字符串。
         """
-        # 每次截屏都重新获取窗口句柄和窗口坐标
-        self.handle = self.get_handle(self.name)
-        self.left, self.top, self.right, self.bottom = self.get_window_rect(self.handle)
-        self.width = self.right - self.left
-        self.height = self.bottom - self.top
-        
-        # 使用新的 window_screen 方法进行截图，或者使用 sct.grab 方法
-        if self.use_sct:
-            check_requirements(('mss',))
-            self.sct = mss.mss()
-            self.monitor = {'left': self.left, 'top': self.top, 'width': self.width, 'height': self.height}       
-            im0 = np.array(self.sct.grab(self.monitor))[:, :, :3]  # BGRA to BGR
-        else:
-            im0 = self.window_screen(self.handle)
 
-        s = f'窗口 {self.handle} (LTWH): {self.left},{self.top},{self.width},{self.height}: '
+        # 每次截屏都重新获取窗口句柄和窗口坐标
+        if self.mode != 'adb':
+            try:
+                self.handle = self.get_handle(self.name)
+            except Exception as e:
+                raise GetHandleError(f"获取窗口句柄时发生错误: {str(e)}")
+
+            try:
+                self.left, self.top, self.right, self.bottom = self.get_window_rect(self.handle)
+            except Exception as e:
+                raise GetWindowRectError(f"获取窗口坐标时发生错误: {str(e)}")
+
+            self.width = self.right - self.left
+            self.height = self.bottom - self.top
+            s = f'窗口 {self.handle} (LTWH): {self.left},{self.top},{self.width},{self.height}: '
+
+        if self.mode == 'mss':
+            check_requirements(('mss',))
+            with self._lock:
+                with mss.mss() as sct:
+                    self.monitor = {'left': self.left, 'top': self.top, 'width': self.width, 'height': self.height}
+                    try:
+                        im0 = np.array(sct.grab(self.monitor))[:, :, :3]  # BGRA to BGR
+                    except Exception as e:
+                        raise ScreenCapError(f"使用 mss 模式截屏时发生错误: {str(e)}")
+        elif self.mode == 'win_api':
+            try:
+                im0 = self.win_api_cap(self.handle)
+            except Exception as e:
+                raise ScreenCapError(f"使用 win_api 模式截屏时发生错误: {str(e)}")
+        elif self.mode == 'adb':
+            self.handle = self.name
+            s = "ADB mode, full screen: "
+            device = AdbClient(host="127.0.0.1", port=5037).device(self.name)
+            try:
+                result = device.screencap()
+                nparr = np.frombuffer(result, np.uint8)
+                im0 = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+                self.width, self.height = im0.shape[1], im0.shape[0]
+                self.left, self.top = 0, 0  # 在adb模式下,左上角坐标为(0,0)
+            except Exception as e:
+                raise ScreenCapError(f"使用 adb 模式截屏时发生错误: {str(e)}")
 
         if self.transforms:
-            im = self.transforms(im0)  # transforms
+            try:
+                im = self.transforms(im0)  # 图像转换
+            except Exception as e:
+                raise TransformError(f"转换图像时发生错误: {str(e)}")
         else:
-            im = letterbox(im0, self.img_size, stride=self.stride, auto=self.auto)[0]  # padded resize
-            im = im.transpose((2, 0, 1))[::-1]  # HWC to CHW, BGR to RGB
-            im = np.ascontiguousarray(im)  # contiguous
+            try:
+                im = self.process_image(im0)  # 将图像转换操作封装到单独的函数中
+            except Exception as e:
+                raise TransformError(f"处理图像时发生错误: {str(e)}")
+
         self.frame += 1
-        return self.handle, im, im0, s  # 窗口句柄，经转换的图像，原图像，窗口信息字符串
-
-
+        return self.handle, im, im0, s  # 返回窗口句柄，转换后的图像，原始图像，窗口信息字符串
 
 
 class LoadImages:

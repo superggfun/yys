@@ -5,9 +5,11 @@ import time
 import random
 import threading
 import pyautogui
+from typing import Literal
 
 from win32api import MAKELONG, SendMessage
 from win32con import WM_LBUTTONUP, WM_LBUTTONDOWN, WM_ACTIVATE, WA_ACTIVE
+from ppadb.client import Client as AdbClient
 
 from object_detector import ObjectDetector
 
@@ -20,14 +22,17 @@ class ObjectInteractor:
     # 类级别的信号量，所有实例共享
     click_semaphore = threading.Semaphore(1)
 
-    def __init__(self, window_name, use_sct=True):
+    def __init__(self, window_name: str, mode: Literal['mss', 'win_api', 'adb'] = 'mss'):
         """
         初始化ObjectInteractor对象。
 
-        :param detector: 用于进行物体检测的ObjectDetector实例。
+        :param window_name: 窗口名称。
+        :param mode: 截图模式，'mss'表示使用 mss 库（不能遮挡）进行截图，'win_api'表示使用 Windows API 进行后台截图，'adb'表示使用ADB进行截图。默认为'mss'
         """
-        self.detector = ObjectDetector(window_name, use_sct)
+        self.window_name = window_name
+        self.detector = ObjectDetector(window_name, mode)
         self.dataset = self.detector.dataset
+        
 
     def detect_and_click(self, class_name, perform_click, timeout=None, no_delay=False, double_click_probability=True, stop_if_no_detect=False):
         """
@@ -101,11 +106,50 @@ class ObjectInteractor:
         :param no_delay: 是否在点击后立即返回，不进行延迟。默认为False。
         :param double_click_probability: 是否有可能进行双击操作。默认为True。
         """
-        if self.detector.use_sct:
-            with ObjectInteractor.click_semaphore:
-                self._perform_click_foreground(bbox, generate_click_position, no_delay, double_click_probability)
-        else:
+        if self.dataset.mode == "win_api":
             self._perform_click_background(bbox, generate_click_position)
+        else:
+            click_x, click_y, double_click = self._click_common(bbox, generate_click_position, no_delay, double_click_probability)
+
+            if self.dataset.mode == "mss":
+                with ObjectInteractor.click_semaphore:
+                    self._perform_click_foreground(click_x, click_y, double_click)
+            elif self.dataset.mode == "adb":
+                self._adb_perform_click(click_x, click_y, double_click)
+
+    
+    def _click_common(self, bbox, generate_click_position, no_delay=False, double_click_probability=True):
+        """
+        处理点击操作的公共部分。
+
+        :param bbox: 物体的边界框。
+        :param generate_click_position: 用于生成点击位置的函数。
+        :param no_delay: 是否在点击后立即返回，不进行延迟。默认为False。
+        :param double_click_probability: 是否有可能进行双击操作。默认为True。
+        :return: 点击的坐标，双击的可能性
+        """
+        # 获取点击位置
+        click_x, click_y = generate_click_position(bbox)
+
+        if not no_delay:
+            # 生成鼠标移动后的随机休眠时间（0.5到0.75秒之间）
+            sleep_time = random.uniform(0.5, 0.75)
+
+            # 休眠随机时间
+            time.sleep(sleep_time)
+
+        double_click = double_click_probability and random.random() < 0.2
+        if double_click:
+            if not no_delay:
+                # 生成双击之间的随机休眠时间（0.1到0.15秒之间）
+                double_click_sleep_time = random.uniform(0.1, 0.15)
+
+                # 休眠随机时间
+                time.sleep(double_click_sleep_time)
+                
+        return click_x, click_y, double_click
+
+
 
 
     def _perform_click_background(self, bbox, generate_click_position):
@@ -137,25 +181,14 @@ class ObjectInteractor:
         time.sleep(random.uniform(0.16, 0.25))  # 点击弹起改为随机
         SendMessage(hwnd, WM_LBUTTONUP, 0, long_position)  # 模拟鼠标弹起
 
-    def _perform_click_foreground(self, bbox, generate_click_position, no_delay=False, double_click_probability=True):
+    def _perform_click_foreground(self, click_x, click_y, double_click):
         """
-        执行前台点击操作。根据给定的生成点击位置的函数，在物体的特定区域进行点击。
+        执行前台点击操作。
 
-        :param bbox: 物体的边界框。
-        :param generate_click_position: 用于生成点击位置的函数。
-        :param no_delay: 是否在点击后立即返回，不进行延迟。默认为False。
-        :param double_click_probability: 是否有可能进行双击操作。默认为True。
+        :param click_x: 点击的x坐标
+        :param click_y: 点击的y坐标
+        :param double_click: 是否进行双击操作。
         """
-        # 获取点击位置
-        click_x, click_y = generate_click_position(bbox)
-
-        if not no_delay:
-            # 生成鼠标移动后的随机休眠时间（0.5到0.75秒之间）
-            sleep_time = random.uniform(0.5, 0.75)
-
-            # 休眠随机时间
-            time.sleep(sleep_time)
-
         # 生成鼠标移动的随机持续时间（0.1到0.3秒之间）
         duration = random.uniform(0.1, 0.3)
 
@@ -163,17 +196,25 @@ class ObjectInteractor:
         pyautogui.moveTo(click_x, click_y, duration=duration)
         pyautogui.click()
 
-        if double_click_probability and random.random() < 0.2:
-            if not no_delay:
-                # 生成双击之间的随机休眠时间（0.1到0.15秒之间）
-                double_click_sleep_time = random.uniform(0.1, 0.15)
-
-                # 休眠随机时间
-                time.sleep(double_click_sleep_time)
-
+        if double_click:
+            # 执行第二次点击操作
             pyautogui.click()
 
+    def _adb_perform_click(self, click_x, click_y, double_click):
+        """
+        使用ADB执行点击操作。
 
+        :param click_x: 点击的x坐标
+        :param click_y: 点击的y坐标
+        :param double_click: 是否进行双击操作。
+        """
+        # 使用adb shell命令执行点击操作
+        device = AdbClient(host="127.0.0.1", port=5037).device(self.window_name)
+        device.shell(f'input tap {click_x} {click_y}')
+
+        if double_click:
+            # 执行第二次点击操作
+            device.shell(f'input tap {click_x} {click_y}')
 
     def perform_click_center(self, bbox, no_delay=False, double_click_probability=True):
         """

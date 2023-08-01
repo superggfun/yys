@@ -10,6 +10,7 @@ from models.common import DetectMultiBackend
 from utils.dataloaders import LoadScreenshots
 from utils.general import (Profile, check_img_size, non_max_suppression, scale_boxes)
 from utils.torch_utils import select_device
+from typing import Literal
 
 FILE = Path(__file__).resolve()
 ROOT = FILE.parents[0]  # YOLOv5 root directory
@@ -36,30 +37,26 @@ class ObjectDetector:
     agnostic_nms = False
     max_det = 1000  # 最大检测数量
 
-    def __init__(self, window_name, use_sct=True):
+    def __init__(self, window_name: str, mode: Literal['mss', 'win_api', 'adb'] = 'mss'):
         """
         初始化ObjectDetector对象。
 
         :param window_name: 窗口名称。
-        :param use_sct: 是否使用 mss 库（不能遮挡）进行截图，默认为 True，如果为 False，将使用 Windows API 进行后台截图
+        :param mode: 截图模式，'mss'表示使用 mss 库（不能遮挡）进行截图，'win_api'表示使用 Windows API 进行后台截图，'adb'表示使用ADB进行截图。默认为'sct'
         """
-        self.window_name = window_name
-        self.imgsz = ObjectDetector.imgsz
         self.time_profile = (Profile(), Profile(), Profile())
-        self.class_names = ""
-        self.use_sct = use_sct
 
         # 如果模型还没有被加载，则进行加载
-        if ObjectDetector.model is None:
+        if not ObjectDetector.model:
             ObjectDetector.model = DetectMultiBackend(ObjectDetector.weights, device=ObjectDetector.device, dnn=False, data=ObjectDetector.data, fp16=False)
             ObjectDetector.stride, ObjectDetector.names, ObjectDetector.pytorch_tensor = ObjectDetector.model.stride, ObjectDetector.model.names, ObjectDetector.model.pt
-            self.imgsz = check_img_size(ObjectDetector.imgsz, s=ObjectDetector.stride)  # Check image size
+            ObjectDetector.imgsz = check_img_size(ObjectDetector.imgsz, s=ObjectDetector.stride)  # Check image size
 
             # Warmup the model
-            ObjectDetector.model.warmup(imgsz=(1 if ObjectDetector.pytorch_tensor or ObjectDetector.model.triton else 1, 3, *self.imgsz))
+            ObjectDetector.model.warmup(imgsz=(1 if ObjectDetector.pytorch_tensor or ObjectDetector.model.triton else 1, 3, *ObjectDetector.imgsz))
 
-        # use_sct 是否使用 mss 库进行截图
-        self.dataset = LoadScreenshots(self.window_name, img_size=self.imgsz, stride=ObjectDetector.stride, auto=ObjectDetector.pytorch_tensor, use_sct=self.use_sct)
+        # 初始化截图工具
+        self.dataset = LoadScreenshots(window_name, img_size=ObjectDetector.imgsz, stride=ObjectDetector.stride, auto=ObjectDetector.pytorch_tensor, mode=mode)
 
     def _preprocess_image(self, image):
         """对图像进行预处理"""
@@ -86,9 +83,9 @@ class ObjectDetector:
         class_names_set = set(name.strip() for name in class_names)
 
         for path, image, im0s, _ in self.dataset:
-
+            
             # 延迟检测
-            time.sleep(0.2)
+            time.sleep(0.1)
             # 检查是否超时
             if start_time is not None and time.time() - start_time > timeout:
                 break
@@ -102,6 +99,7 @@ class ObjectDetector:
                 pred = non_max_suppression(pred, ObjectDetector.conf_thres, ObjectDetector.iou_thres, ObjectDetector.classes,
                                         ObjectDetector.agnostic_nms, max_det=ObjectDetector.max_det)
             # 处理检测结果
+            
             if len(pred):
                 for _, det in enumerate(pred):
                     if len(det):
