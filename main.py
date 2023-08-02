@@ -44,7 +44,7 @@ def start_mode_thread(window_name, method):
     返回:
     返回创建的线程对象。
     """
-    mode = Mode(window_name, mode='mss')
+    mode = Mode(window_name, mode='adb')
     thread = threading.Thread(target=method, args=(mode,), daemon=True)
     thread.start()
     return thread
@@ -53,7 +53,8 @@ def run():
     """
     创建 Mode 实例并开始执行点击操作。
     """
-    thread1 = start_mode_thread("阴阳师 - MuMu模拟器", Mode.test)#阴阳师 - MuMu模拟器
+    os.system('adb connect 127.0.0.1:16384')
+    thread1 = start_mode_thread("127.0.0.1:16384", Mode.qiling)#阴阳师 - MuMu模拟器
     #thread2 = start_mode_thread("阴阳师 - MuMu模拟器", Mode.yuhun)#阴阳师-网易游戏
 
     thread1.join()

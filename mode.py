@@ -46,16 +46,16 @@ class Mode(ObjectInteractor):
         """
         while True:  # 无限循环，持续进行对象检测和点击操作
             self.detect_and_click("tiaozhan_chi", self.perform_click_center)
-            self.detect_and_click("zhunbei", self.perform_click_center)
-            self.detect_and_click("win", self.perform_click_center)
+            #self.detect_and_click("zhunbei", self.perform_click_center)
             self.detect_and_click("hun", self.perform_click_all)
 
-    def huodong(self):
+    def qiling(self):
         """
         执行点击操作。该方法首先进行物体检测，然后按照给定的类别顺序对检测到的物体进行点击操作。
         """
         while True:  # 无限循环，持续进行对象检测和点击操作
-            self.detect_and_click("tiaozhan_huo", self.perform_click_center)
+            self.detect_and_click("tancha_qiling", self.perform_click_center)
+            self.detect_and_click("zhunbei", self.perform_click_center, 4)
             self.detect_and_click("hun", self.perform_click_all)
 
     def fuben(self):
