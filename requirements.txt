@@ -24,6 +24,7 @@ packaging==23.1
 pandas==2.0.3
 Pillow==10.0.0
 psutil==5.9.5
+pure-python-adb==0.3.0.dev0
 PyAutoGUI==0.9.54
 PyGetWindow==0.0.9
 PyMsgBox==1.0.9
@@ -45,8 +46,26 @@ six==1.16.0
 smmap==5.0.0
 sympy==1.12
 thop==0.1.1.post2209072238
+
+# 下面的包是为了在CPU上运行PyTorch所需要的:
 torch==2.0.1
 torchvision==0.15.2
+
+# 注意: 如果你打算在具有支持CUDA的NVIDIA显卡上运行PyTorch，请首先卸载上述的包：
+# pip uninstall torch torchvision
+# 然后运行以下命令安装适合GPU运行的包：
+# pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118
+# 这是为了安装支持在GPU上运行的 torch, torchvision 和 torchaudio
+
+# 如果下载速度慢可以设置pip源为清华大学源，加速包的下载：
+# pip config set global.index-url https://pypi.tuna.tsinghua.edu.cn/simple
+# 安装适合CUDA 11.8的PyTorch, torchvision 和 torchaudio 版本：
+# pip install torch==2.0.0+cu118 torchvision==0.15.1+cu118 torchaudio==2.0.1+cu118 -f https://download.pytorch.org/whl/
+
+# 更多的安装指南可以在PyTorch的官方网站找到:
+# https://pytorch.org/get-started/locally/
+# 请注意，CUDA目前不支持AMD显卡
+
 tqdm==4.65.0
 typing_extensions==4.7.1
 tzdata==2023.3
