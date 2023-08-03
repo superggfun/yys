@@ -53,9 +53,9 @@ def run():
     """
     创建 Mode 实例并开始执行点击操作。
     """
-    os.system('adb connect 127.0.0.1:16384')
-    thread1 = start_mode_thread("127.0.0.1:16384", Mode.qiling)#阴阳师 - MuMu模拟器
-    #thread2 = start_mode_thread("阴阳师 - MuMu模拟器", Mode.yuhun)#阴阳师-网易游戏
+    #os.system('adb connect 127.0.0.1:16384')
+    thread1 = start_mode_thread("127.0.0.1:16384", Mode.qiling) # 阴阳师 - MuMu模拟器
+    #thread2 = start_mode_thread("阴阳师 - MuMu模拟器", Mode.yuhun) # 阴阳师-网易游戏
 
     thread1.join()
     #thread2.join()
@@ -65,8 +65,8 @@ def run():
 
 
 if __name__ == '__main__':
-    run()
-    #if is_admin():
-    #    run()
-    #else:
-    #    run_as_admin()
+    #run()
+    if is_admin():
+        run()
+    else:
+        run_as_admin()

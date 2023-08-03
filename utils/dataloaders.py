@@ -232,6 +232,20 @@ class LoadScreenshots:
         self.img_size = img_size
         self.stride = stride
         self.mode = mode
+        if self.mode == 'adb':
+            device_address = self.name.split(':')
+            host = device_address[0]
+            port = int(device_address[1]) if len(device_address) > 1 else 5555  # 使用默认端口5555，如果端口没有指定
+
+            # 创建 AdbClient 实例
+            client = AdbClient(host="127.0.0.1", port=5037)
+
+            # 连接到设备
+            client.remote_connect(host, port)
+
+            # 获取设备实例
+            self.device = client.device(self.name)
+
 
     @staticmethod
     def get_handle(name: str) -> int:
@@ -369,9 +383,9 @@ class LoadScreenshots:
         elif self.mode == 'adb':
             self.handle = self.name
             s = "ADB mode, full screen: "
-            device = AdbClient(host="127.0.0.1", port=5037).device(self.name)
+            
             try:
-                result = device.screencap()
+                result = self.device.screencap()
                 nparr = np.frombuffer(result, np.uint8)
                 im0 = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
                 self.width, self.height = im0.shape[1], im0.shape[0]
