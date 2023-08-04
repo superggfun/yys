@@ -45,6 +45,7 @@ class ObjectDetector:
         :param mode: 截图模式，'mss'表示使用 mss 库（不能遮挡）进行截图，'win_api'表示使用 Windows API 进行后台截图，'adb'表示使用ADB进行截图。默认为'sct'
         """
         self.time_profile = (Profile(), Profile(), Profile())
+        self._thread_state = "running" # 标记线程的状态，可以是 "running"，"paused"，"stopped"
 
         # 如果模型还没有被加载，则进行加载
         if not ObjectDetector.model:
@@ -57,6 +58,18 @@ class ObjectDetector:
 
         # 初始化截图工具
         self.dataset = LoadScreenshots(window_name, img_size=ObjectDetector.imgsz, stride=ObjectDetector.stride, auto=ObjectDetector.pytorch_tensor, mode=mode)
+
+    def pause(self):
+        """暂停检测"""
+        self._thread_state = "paused"
+
+    def resume(self):
+        """恢复检测"""
+        self._thread_state = "running"
+
+    def stop(self):
+        """停止检测"""
+        self._thread_state = "stopped"
 
     def _preprocess_image(self, image):
         """对图像进行预处理"""
@@ -83,7 +96,11 @@ class ObjectDetector:
         class_names_set = set(name.strip() for name in class_names)
 
         for path, image, im0s, _ in self.dataset:
-            
+            while self._thread_state == "paused":
+                time.sleep(0.1)  # 暂停时线程进入循环等待，等待恢复
+
+            if self._thread_state == "stopped":
+                break  # 当线程被标记为停止时，跳出主循环
             # 延迟检测
             time.sleep(0.1)
             # 检查是否超时

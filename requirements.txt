@@ -31,6 +31,9 @@ PyMsgBox==1.0.9
 pyparsing==3.0.9
 pyperclip==1.8.2
 pypiwin32==223
+PyQt5==5.15.9
+PyQt5-Qt5==5.15.2
+PyQt5-sip==12.12.2
 PyRect==0.2.0
 pyscreenshot==3.1
 PyScreeze==0.1.29
@@ -47,24 +50,25 @@ smmap==5.0.0
 sympy==1.12
 thop==0.1.1.post2209072238
 
-# 下面的包是为了在CPU上运行PyTorch所需要的:
+# The following packages are needed to run PyTorch on CPU:
 torch==2.0.1
 torchvision==0.15.2
 
-# 注意: 如果你打算在具有支持CUDA的NVIDIA显卡上运行PyTorch，请首先卸载上述的包：
+# Note: If you plan to run PyTorch on an NVIDIA graphics card with CUDA support, please first uninstall the above packages:
 # pip uninstall torch torchvision
-# 然后运行以下命令安装适合GPU运行的包：
+# Then run the following command to install packages suitable for GPU execution:
 # pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118
-# 这是为了安装支持在GPU上运行的 torch, torchvision 和 torchaudio
+# This is to install torch, torchvision, and torchaudio that support execution on the GPU
 
-# 如果下载速度慢可以设置pip源为清华大学源，加速包的下载：
+# If the download speed is slow, you can set the pip source to Tsinghua University source to speed up the package download:
 # pip config set global.index-url https://pypi.tuna.tsinghua.edu.cn/simple
-# 安装适合CUDA 11.8的PyTorch, torchvision 和 torchaudio 版本：
+# Install PyTorch, torchvision, and torchaudio versions suitable for CUDA 11.8:
 # pip install torch==2.0.0+cu118 torchvision==0.15.1+cu118 torchaudio==2.0.1+cu118 -f https://download.pytorch.org/whl/
 
-# 更多的安装指南可以在PyTorch的官方网站找到:
+# More installation guides can be found on the PyTorch official website:
 # https://pytorch.org/get-started/locally/
-# 请注意，CUDA目前不支持AMD显卡
+# https://download.pytorch.org/whl/torch_stable.html
+# Please note, CUDA currently does not support AMD graphics cards
 
 tqdm==4.65.0
 typing_extensions==4.7.1

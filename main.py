@@ -9,7 +9,7 @@ import ctypes
 from sys import executable
 import threading
 from mode import Mode
-import os
+# import os
 
 
 def is_admin():

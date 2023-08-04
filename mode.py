@@ -5,17 +5,23 @@ Mode模块，提供了Mode类，它是WindowDetect类的子类，实现了特定
 import time
 import random
 from object_interactor import ObjectInteractor
+from typing import Literal
 
 class Mode(ObjectInteractor):
     """
     Mode类，ObjectInteractor的子类，实现了特定的点击操作。
     """
+    def __init__(self, window_name: str, mode: Literal['mss', 'win_api', 'adb'] = 'mss'):
+        super().__init__(window_name, mode)
+        self.running = True  # 状态标志，表示模式是否正在运行
 
     def yuhun(self):
         """
         执行点击操作。该方法首先进行物体检测，然后按照给定的类别顺序对检测到的物体进行点击操作。
         """
         while True:  # 无限循环，持续进行对象检测和点击操作
+            if not self.running:  # 在每次检测之前检查状态，如果停止则立即退出
+                break
             self.detect_and_click("win", self.perform_click_center)
             self.detect_and_click("hun", self.perform_click_all)
             self.detect_and_click("tiaozhan_on", self.perform_click_center)
@@ -90,14 +96,17 @@ class Mode(ObjectInteractor):
                         self.detect_and_click("gift", self.perform_click_center, 1)
                         self.detect_and_click("gain_gift", self.perform_click_all, 1)
                     break  # 如果检测到 "attack_head"，则跳出内部循环
-                print(6)
                 time.sleep(random.uniform(0, 1))  # 在循环结束时暂停，以避免过快的循环
 
 
     def test(self):
         while True:
+            if not self.running:  # 在每次检测之前检查状态，如果停止则立即退出
+                break
             self.detect_and_click("tili", self.perform_click_center, stop_if_no_detect=True)
 
     def test2(self):
         while True:
+            if not self.running:  # 在每次检测之前检查状态，如果停止则立即退出
+                break
             self.detect_and_click("gold", self.perform_click_center, stop_if_no_detect=True)

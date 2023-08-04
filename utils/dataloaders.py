@@ -235,16 +235,26 @@ class LoadScreenshots:
         if self.mode == 'adb':
             device_address = self.name.split(':')
             host = device_address[0]
-            port = int(device_address[1]) if len(device_address) > 1 else 5555  # 使用默认端口5555，如果端口没有指定
+            port = int(device_address[1]) if len(device_address) > 1 else 5555
 
-            # 创建 AdbClient 实例
             client = AdbClient(host="127.0.0.1", port=5037)
 
-            # 连接到设备
             client.remote_connect(host, port)
 
-            # 获取设备实例
             self.device = client.device(self.name)
+            self.handle = self.name  # Add this line
+        else:
+            if isinstance(self.name, str):
+                if not self.name.isdigit():
+                    self.handle = self.get_handle(self.name)
+                else:
+                    self.handle = int(self.name)
+            elif isinstance(self.name, int):
+                self.handle = self.name
+            
+            self.left, self.top, self.right, self.bottom = self.get_window_rect(self.handle)
+            self.width = self.right - self.left
+            self.height = self.bottom - self.top
 
 
     @staticmethod
@@ -350,21 +360,7 @@ class LoadScreenshots:
         :return: 窗口句柄，经转换的图像，原图像，窗口信息字符串。
         """
 
-        # 每次截屏都重新获取窗口句柄和窗口坐标
-        if self.mode != 'adb':
-            try:
-                self.handle = self.get_handle(self.name)
-            except Exception as e:
-                raise GetHandleError(f"获取窗口句柄时发生错误: {str(e)}")
-
-            try:
-                self.left, self.top, self.right, self.bottom = self.get_window_rect(self.handle)
-            except Exception as e:
-                raise GetWindowRectError(f"获取窗口坐标时发生错误: {str(e)}")
-
-            self.width = self.right - self.left
-            self.height = self.bottom - self.top
-            s = f'窗口 {self.handle} (LTWH): {self.left},{self.top},{self.width},{self.height}: '
+        
 
         if self.mode == 'mss':
             check_requirements(('mss',))
@@ -373,11 +369,13 @@ class LoadScreenshots:
                     self.monitor = {'left': self.left, 'top': self.top, 'width': self.width, 'height': self.height}
                     try:
                         im0 = np.array(sct.grab(self.monitor))[:, :, :3]  # BGRA to BGR
+                        s = f'窗口 {self.handle} (LTWH): {self.left},{self.top},{self.width},{self.height}: '
                     except Exception as e:
                         raise ScreenCapError(f"使用 mss 模式截屏时发生错误: {str(e)}")
         elif self.mode == 'win_api':
             try:
                 im0 = self.win_api_cap(self.handle)
+                s = f'窗口 {self.handle} (LTWH): {self.left},{self.top},{self.width},{self.height}: '
             except Exception as e:
                 raise ScreenCapError(f"使用 win_api 模式截屏时发生错误: {str(e)}")
         elif self.mode == 'adb':
@@ -389,7 +387,7 @@ class LoadScreenshots:
                 nparr = np.frombuffer(result, np.uint8)
                 im0 = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
                 self.width, self.height = im0.shape[1], im0.shape[0]
-                self.left, self.top = 0, 0  # 在adb模式下,左上角坐标为(0,0)
+                self.left, self.top = 0, 0
             except Exception as e:
                 raise ScreenCapError(f"使用 adb 模式截屏时发生错误: {str(e)}")
 

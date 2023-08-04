@@ -32,6 +32,20 @@ class ObjectInteractor:
         self.window_name = window_name
         self.detector = ObjectDetector(window_name, mode)
         self.dataset = self.detector.dataset
+        self.stopped = False  # 添加 'stopped' 属性
+
+    def pause(self):
+        """暂停执行"""
+        self.detector.pause()
+
+    def resume(self):
+        """恢复执行"""
+        self.detector.resume()
+
+    def stop(self):
+        """停止执行"""
+        self.running = False
+        self.detector.stop()
         
 
     def detect_and_click(self, class_name, perform_click, timeout=None, no_delay=False, double_click_probability=True, stop_if_no_detect=False):
@@ -46,10 +60,12 @@ class ObjectInteractor:
         :param stop_if_no_detect: 如果设置为True，在没有检测到对象时立即返回None。
         :return: 布尔值，如果检测到物体并执行了点击操作，则返回True，否则返回False。
         """
-        detected_object = self.detector.start_detect([class_name], timeout, stop_if_no_detect)
-        if detected_object:
-            perform_click(detected_object['bbox'], no_delay, double_click_probability)
-        return detected_object is not None
+        while not self.stopped:  # 检查停止标志
+            detected_object = self.detector.start_detect([class_name], timeout, stop_if_no_detect)
+            if detected_object:
+                perform_click(detected_object['bbox'], no_delay, double_click_probability)
+            return detected_object is not None
+        return False
 
 
     def detect_and_click_any(self, class_names, perform_click, no_delay=False, double_click_probability=True, stop_if_no_detect=False):

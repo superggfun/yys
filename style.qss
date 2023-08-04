@@ -1,0 +1,146 @@
+QWidget#widget{
+            background-color:#eef0f6;
+            border-left:0.5px solid light-gray;
+            border-right:0.5px solid light-gray;
+            border-top:0.5px solid lightgray;
+            border-bottom:0.5px solid #e5e5e5;
+            border-top-left-radius: 5px;
+            border-top-right-radius: 5px;
+        }
+
+        QWidget#widget_2{
+            background-color:#ffffff;
+            border-left:0.5px solid lightgray;
+            border-right:0.5px solid lightgray;
+            border-bottom:0.5px solid #e5e5e5;
+            border-bottom-left-radius: 5px;
+            border-bottom-right-radius: 5px;
+            padding:5px 5px 5px 5px;
+        }
+
+        QPushButton#minimize {
+            font-family:"Webdings";
+            text-align:top;
+            background:#6DDF6D;
+            border-radius:5px;
+            border:none;
+            font-size:13px;
+        }
+        QPushButton#minimize:hover{background:green;}
+
+        QPushButton#pin_button {
+            font-family:"Webdings";
+            background:#F7D674;
+            border-radius:5px;
+            border:none;
+            font-size:13px;
+        }
+        QPushButton#pin_button:hover{background:#b8860b;}
+
+        QPushButton#closew {
+            font-family:"Webdings";
+            background:#F76677;
+            border-radius:5px;
+            border:none;
+            font-size:13px;
+        }C
+        QPushButton#closew:hover{background:#b22222;}
+
+        QPushButton#PC {
+            font-family:"Microsoft YaHei";
+            background:#FF8C00;
+            border-radius:5px;
+            border:none;
+            font-size:13px;
+        }
+        QPushButton#PC:hover{background:Yellow;}
+
+        QPushButton#startButton {
+            font-family:"Microsoft YaHei";
+            background:#6DDF6D;
+            border-radius:5px;
+            border:none;
+            font-size:13px;
+        }
+        QPushButton#startButton:hover{background:green;}
+
+        QPushButton#StopButton {
+            font-family:"Microsoft YaHei";
+            background:#F76677;
+            border-radius:5px;
+            border:none;
+            font-size:13px;
+        }
+        QPushButton#StopButton:hover{background:#b22222;}
+
+        QTextBrowser#textBrowser {
+            font-family:"Microsoft YaHei";
+            background:#dcdcdc;
+            border-radius:5px;
+            border:none;
+            font-size:13px;
+        }
+
+        QTextBrowser#textBrowser {
+            font-family:"Microsoft YaHei";
+            background:#dcdcdc;
+            border-radius:5px;
+            border:none;
+            font-size:13px;
+        }
+
+        QComboBox {
+            border-radius:3px;
+            background:#dbdbdb;
+            font: 75 9pt "Microsoft YaHei";
+            color: #1C1C1C;
+            border:0px;
+            padding-top: 2px;
+            padding-left: 2px;
+        }
+
+        QComboBox:hover {
+            background-color:rgba(45,45,45,70);
+            border:1px solid rgb(31,156,220);
+        }
+
+        QComboBox:on {
+            border-radius:3px;
+            background-color:rgba(35,35,35,99);
+            font: 75 9pt "Microsoft YaHei";
+            color:rgb(255,255,255);
+            border:1px solid rgb(31,156,220);
+        }
+
+        QComboBox QAbstractItemView {
+            outline: 0px solid gray;
+            border: 2px solid rgb(31,156,220);
+            font: 75 9pt "Microsoft YaHei";
+            color: #1C1C1C;
+            background-color:#dbdbdb;
+            selection-background-color: #6495ED;
+        }
+
+        QComboBox QAbstractItemView::item {height: 25px;}
+
+        QComboBox QAbstractItemView::item:selected {
+            color: rgb(31,163,246);
+            background-color: rgb(90,90,90);
+        }
+
+        QComboBox::drop-down {
+            border:none;
+        }
+
+        QComboBox::down-arrow {
+            right:10px;
+            width: 9px;
+            height: 9px;
+            image: url(:/Resource/spinbox/combox_up.png);
+        }
+
+        QComboBox::down-arrow:on {
+            width: 9px;
+            height: 9px;
+            image: url(:/Resource/spinbox/combox_down.png);
+        }
