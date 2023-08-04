@@ -47,7 +47,7 @@ class ClickerPage(QWidget):
         self.feature_layout = QVBoxLayout()
         self.feature_box.setLayout(self.feature_layout)
 
-        self.features = ["御魂", "结界突破", "测试", "测试2"]
+        self.features = ["御魂", "结界突破", "痴","测试体力", "测试金币"]
         self.feature_combo = QComboBox()
         self.feature_combo.addItems(self.features)
         self.feature_layout.addWidget(self.feature_combo)
@@ -81,6 +81,7 @@ class ClickerPage(QWidget):
         self.stop_options_combo.currentTextChanged.connect(self.change_stop_options)
         self.stop_option_input = QLineEdit()  # 用于输入游戏数量或时间
         self.stop_option_input.setVisible(False)  # 默认情况下隐藏
+        
 
         self.stop_options_layout = QHBoxLayout()
         self.stop_options_layout.addWidget(self.stop_options_combo)
@@ -124,21 +125,50 @@ class ClickerPage(QWidget):
         }
         mode_value = capture_mode_dict[self.capture_mode_combo.currentText()]
 
-        # 然后，你可以使用这个mode_value来创建Mode实例：
-        self.mode = Mode(self.get_mode_value(), mode=mode_value)
-                # 更新 feature_dict
+        # 从GUI中获取限制参数
+        stop_option = self.stop_options_combo.currentText()
+
+        if stop_option == "No limit":
+            game_limit = None
+            time_limit = None
+        elif stop_option == "Number of Games":
+            try:
+                limit_value = int(self.stop_option_input.text())
+                game_limit = limit_value
+                time_limit = None
+            except ValueError:
+                QMessageBox.warning(self, "Invalid input", "Please enter a valid number for limit.")
+                return
+        elif stop_option == "Timer":
+            try:
+                limit_value = int(self.stop_option_input.text())
+                game_limit = None
+                time_limit = limit_value
+            except ValueError:
+                QMessageBox.warning(self, "Invalid input", "Please enter a valid number for limit.")
+                return
+
+        
+        # 创建线程
+        selected_feature = self.feature_combo.currentText()
+        self.thread1 = threading.Thread(target=self._init_mode_and_run, 
+                                    args=(self.get_mode_value(), mode_value, game_limit, time_limit, selected_feature),
+                                    daemon=True)
+        self.thread1.start()
+
+    def _init_mode_and_run(self, window_name, mode_value, game_limit, time_limit, mode_method_name):
+        self.mode = Mode(window_name, mode=mode_value, game_limit=game_limit, time_limit=time_limit)
+        
         self.feature_dict = {
             "御魂": self.mode.yuhun, 
             "结界突破": self.mode.tupo, 
-            "测试": self.mode.test,
-            "测试2": self.mode.test2
+            "痴": self.mode.chi,
+            "测试体力": self.mode.test,
+            "测试金币": self.mode.test2
         }
-        # 创建线程
-        selected_feature = self.feature_combo.currentText()
-        mode_method = self.feature_dict[selected_feature]
-        self.thread1 = threading.Thread(target=mode_method, daemon=True)
-        self.thread1.start()
-
+        
+        mode_method = self.feature_dict[mode_method_name]
+        mode_method()
 
     def stop_clicked(self):
         """
