@@ -1,20 +1,69 @@
 from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QGroupBox, QGridLayout, QComboBox,
                              QLineEdit, QPushButton, QSizePolicy, QHBoxLayout, QLabel, QTextBrowser, QMessageBox)
 
-from PyQt5.QtCore import Qt
+from PyQt5.QtCore import Qt, pyqtSignal, QObject, QThread
 
 from win32gui import EnumWindows, GetWindowText, IsWindow, IsWindowEnabled, IsWindowVisible
 
-import threading
 from mode import Mode
+
+import re, sys
+
+class Stream(QObject):
+    newText = pyqtSignal(str)
+
+    color_mapping = {
+        "[通告]": ("[通告]", "orange"),
+        "An error occurred": ("[错误]", "red"),
+        "发生错误": ("[错误]", "red"),
+        "[错误]": ("[错误]", "red"),
+        "[停止]": ("[停止]", "red"),
+        "[识别]": ("[识别]", "green")
+    }
+
+    def write(self, text):
+        #self.newText.emit(str(text) + '<br />')
+        for phrase, (replacement, color) in self.color_mapping.items():
+            if text.startswith(phrase):
+                text = text.replace(phrase, f'<font color="{color}">{replacement}</font>')
+                self.newText.emit(str(text) + '<br />')
+
+    def flush(self):
+        pass
+
+class Worker(QThread):
+    signal = pyqtSignal(str)
+
+    def __init__(self, parent=None, func=None, args=()):
+        QThread.__init__(self, parent)
+        self.func = func
+        self.args = args
+
+    def run(self):
+        try:
+            # 在这里运行你的任务。如果你需要打印输出，使用 self.signal.emit() 而不是 print
+            result = self.func(*self.args)
+            if result is not None:  # 检查函数的返回值是否为 None
+                self.signal.emit(str(result))
+                print(result)
+        except Exception as e:
+            self.signal.emit(f"Error: {e}")
+
+    def stop(self):
+        self.running = False  # 停止 run 方法的执行
+
+    def print(self, message):
+        # 一个用于代替 print 的方法
+        self.signal.emit(message)
 
 class ClickerPage(QWidget):
     """
     ClickerPage类，这是我们应用的主界面。
     """
     
-    def __init__(self):
+    def __init__(self, port=""):
         super().__init__()
+        self.port = port if port is not None else ""  # 如果端口是None，那么设置为空字符串
         self.layout = QVBoxLayout()
         self.setLayout(self.layout)
         # 使用静态方法的方式
@@ -35,9 +84,15 @@ class ClickerPage(QWidget):
         self.window_selector = QComboBox()  # 窗口选择下拉菜单
         window_titles = [item[1] for item in self.screen_list]  # 从screen_list中提取窗口标题
         self.window_selector.addItems(window_titles)  # 将窗口标题添加到下拉菜单中
+
         self.port_input = QLineEdit()  # 端口输入
-        self.confirm_button = QPushButton("Confirm")  # 确定按钮
+        self.port_input.setText(str(port))
+        self.port_input.textChanged.connect(self.port_changed)  # 添加此行
+
+        self.confirm_button = QPushButton("保存")  # 确定按钮
         self.confirm_button.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
+        self.confirm_button.clicked.connect(self.save_port)
+
         self.capture_mode_layout.addWidget(self.window_selector, 0, 1)
         self.capture_mode_layout.addWidget(self.port_input, 0, 1)
         self.capture_mode_layout.addWidget(self.confirm_button, 0, 2)
@@ -97,6 +152,16 @@ class ClickerPage(QWidget):
         self.log_display.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOn)  # 始终显示垂直滚动条
         self.layout.addWidget(self.log_display)
 
+        # 保存旧的 sys.stdout
+        self.old_stdout = sys.stdout
+
+        # 创建一个 Stream 实例并将其设置为 sys.stdout
+        self.stream = Stream()
+        sys.stdout = self.stream
+
+        # 连接 Stream 的 newText 信号到更新 log_display 的方法
+        self.stream.newText.connect(self.updateText)
+
         # 显式调用 change_capture_mode 和 change_stop_options，确保捕获模式和停止选项的状态正确
         self.change_capture_mode(self.capture_mode_combo.currentText())
         self.change_stop_options(self.stop_options_combo.currentText())
@@ -108,14 +173,36 @@ class ClickerPage(QWidget):
         # 初始化状态
         self.set_state("initialized")
 
-        self.log("欢迎使用AlphaY")
+        #self.log("欢迎使用AlphaY")
+
+        # 在类的初始化函数中
+        self.mode = None
+
+    def save_port(self):
+        text = self.port_input.text()
+        
+        # 检查字符串是否匹配端口格式
+        if re.match(r'^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}:\d{1,5}$', text):
+            self.port = text
+        # 检查字符串是否匹配ADB设备号格式
+        elif re.match(r'^[A-Z0-9]{16}$', text):
+            self.port = text
+        else:       
+            QMessageBox.warning(self, '无效的输入', '输入必须是IP:端口或者ADB设备号。')
+            return  # 如果输入无效，则不保存端口
+        
+        main_window = self.window()  # 获取主窗口
+        main_window.save_ports()  # 直接调用 save_ports 方法
+
+    # 添加此函数来处理用户更改端口的情况
+    def port_changed(self, new_port):
+        self.port = new_port
 
 
     def start_clicked(self):
         """
         "开始"按钮的点击事件处理。
         """
-        
         self.set_state("running")
         # 创建Mode实例
         capture_mode_dict = {
@@ -151,10 +238,11 @@ class ClickerPage(QWidget):
         
         # 创建线程
         selected_feature = self.feature_combo.currentText()
-        self.thread1 = threading.Thread(target=self._init_mode_and_run, 
-                                    args=(self.get_mode_value(), mode_value, game_limit, time_limit, selected_feature),
-                                    daemon=True)
-        self.thread1.start()
+        # 创建 Worker 线程
+        self.worker = Worker(self, self._init_mode_and_run, 
+                             (self.get_mode_value(), mode_value, game_limit, time_limit, selected_feature))
+        self.worker.signal.connect(self.log_display.append)
+        self.worker.start()  # 开始运行 worker 线程
 
     def _init_mode_and_run(self, window_name, mode_value, game_limit, time_limit, mode_method_name):
         self.mode = Mode(window_name, mode=mode_value, game_limit=game_limit, time_limit=time_limit)
@@ -170,17 +258,26 @@ class ClickerPage(QWidget):
         mode_method = self.feature_dict[mode_method_name]
         mode_method()
 
+    def set_state_to_initialized(self):
+        self.set_state("initialized")
+
+        
     def stop_clicked(self):
         """
         "停止"按钮的点击事件处理。
         """
+        if self.mode is None:
+            return
         self.set_state("initialized")
         self.mode.stop()  # 注意这里使用的是self.mode
+        self.worker.stop()  # 停止 Worker 线程
 
     def pause_continue_clicked(self):
         """
         "暂停/继续"按钮的点击事件处理。
         """
+        if self.mode is None:
+            return
         if self.pause_continue_button.text() == "暂停":
             self.set_state("paused")
             self.mode.pause()  # 注意这里使用的是self.mode
@@ -240,6 +337,16 @@ class ClickerPage(QWidget):
                 if item[1] == selected_window_title:
                     return item[0]
         return None
+    
+    def updateText(self, text):
+        cursor = self.log_display.textCursor()
+        cursor.movePosition(cursor.End)
+        cursor.insertHtml(text)
+        self.log_display.setTextCursor(cursor)
+
+    def __del__(self):
+        # 恢复旧的 sys.stdout
+        sys.stdout = self.old_stdout
 
     @staticmethod
     def get_window_handles(titles_to_find):

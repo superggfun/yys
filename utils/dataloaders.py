@@ -210,6 +210,13 @@ class ScreenCapError(Exception):
 class TransformError(Exception):
     """当图像转换出错时抛出。"""
 
+class ConnectionFailedError(Exception):
+    """自定义的异常类型，表示连接失败"""
+    def __init__(self, host):
+        self.host = host
+        self.message = f"[错误] 无法连接到远程主机: {host}"
+        super().__init__(self.message)
+
 class LoadScreenshots:
     """
     屏幕截图类，用于从指定窗口捕获屏幕截图。
@@ -238,8 +245,12 @@ class LoadScreenshots:
             port = int(device_address[1]) if len(device_address) > 1 else 5555
 
             client = AdbClient(host="127.0.0.1", port=5037)
-
-            client.remote_connect(host, port)
+            connected = client.remote_connect(host, port)
+            try:  
+                if not connected:
+                    raise ConnectionFailedError(self.name)
+            except ConnectionFailedError as e:
+                print(e)  # 打印错误信息
 
             self.device = client.device(self.name)
             self.handle = self.name  # Add this line

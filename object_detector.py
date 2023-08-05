@@ -126,6 +126,7 @@ class ObjectDetector:
                         # 收集检测到的物体
                         for *xyxy, conf, cls in reversed(det):
                             if self.names[int(cls)].strip() in class_names_set:
+                                print('[识别] '+ self.names[int(cls)])
                                 print({'class_name': self.names[int(cls)], 'bbox': xyxy, 'confidence': conf})
                                 return {'class_name': self.names[int(cls)], 'bbox': xyxy, 'confidence': conf}
                     elif stop_if_no_detect:

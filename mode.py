@@ -19,11 +19,11 @@ def time_and_game_limit_decorator(func):
             # 检查时间和游戏次数限制
             current_time = time.time()
             if self.time_limit is not None and current_time - start_time > self.time_limit * 60:
-                print("Time limit reached, stopping the game.")
+                print("[停止] 已达到时间限制，停止游戏。")
                 self.stop()
                 break
             if self.game_limit is not None and game_count >= self.game_limit:
-                print("Game limit reached, stopping the game.")
+                print("[停止] 已达到游戏次数限制，停止游戏。")
                 self.stop()
                 break
             if not self.running:
@@ -32,8 +32,9 @@ def time_and_game_limit_decorator(func):
             try:
                 func(self, *args, **kwargs)
                 game_count += 1
+                print(f"[通告] 已完成游戏次数：{game_count}次。")  # 打印已完成的游戏次数
             except Exception as e:
-                print(f"An error occurred: {e}")
+                print(f"发生错误：{e}")
                 self.stop()
                 break
     return wrapped_function
@@ -43,8 +44,8 @@ class Mode(ObjectInteractor):
     """
     Mode类，ObjectInteractor的子类，实现了特定的点击操作。
     """
-    def __init__(self, window_name: str, mode: Literal['mss', 'win_api', 'adb'] = 'mss', game_limit=None, time_limit=None):
-        super().__init__(window_name, mode)
+    def __init__(self, window_name: str, mode: Literal['mss', 'win_api', 'adb'] = 'mss', game_limit=None, time_limit=None, stop_callback=None):
+        super().__init__(window_name, mode, stop_callback=stop_callback)
         self.running = True  # 状态标志，表示模式是否正在运行
         self.game_limit = game_limit  # 游戏次数限制
         self.time_limit = time_limit  # 游戏时间限制

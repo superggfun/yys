@@ -14,7 +14,6 @@ from ppadb.client import Client as AdbClient
 from object_detector import ObjectDetector
 
 
-
 class ObjectInteractor:
     """
     ObjectInteractor类，用于进行物体的交互操作。
@@ -22,7 +21,7 @@ class ObjectInteractor:
     # 类级别的信号量，所有实例共享
     click_semaphore = threading.Semaphore(1)
 
-    def __init__(self, window_name: str, mode: Literal['mss', 'win_api', 'adb'] = 'mss'):
+    def __init__(self, window_name: str, mode: Literal['mss', 'win_api', 'adb'] = 'mss', stop_callback=None):
         """
         初始化ObjectInteractor对象。
 
@@ -33,6 +32,7 @@ class ObjectInteractor:
         self.detector = ObjectDetector(window_name, mode)
         self.dataset = self.detector.dataset
         self.stopped = False  # 添加 'stopped' 属性
+
 
     def pause(self):
         """暂停执行"""
