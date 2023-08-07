@@ -1,0 +1,106 @@
+class ClickerApp(QMainWindow):
+    """
+    ClickerApp的主应用类。
+    """
+    def __init__(self):
+        super().__init__()if ports:
+            for port in ports:
+                self.add_page(port)
+        else:
+            self.add_page("")def add_page(self, port=None):  # 默认值设置为None
+        if port is None or port is False:  # 如果没有给出port，或者port为False，则将其设置为空字符串
+            port = ""
+        page = ClickerPage(port)
+        self.tab_widget.addTab(page, f"账号 {self.tab_widget.count() + 1}")。这是一个创建新页面的代码。
+class RedirectStdout:
+    def __init__(self, new_stdout):
+        self.new_stdout = new_stdout
+        self.old_stdout = sys.stdout
+
+    def __enter__(self):
+        sys.stdout = self.new_stdout
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        sys.stdout = self.old_stdout
+
+class Stream(QObject):
+    newText = pyqtSignal(str)
+
+    color_mapping = {
+        "[通告]": ("[通告]", "orange"),
+        "An error occurred": ("[错误]", "red"),
+        "发生错误": ("[错误]", "red"),
+        "[错误]": ("[错误]", "red"),
+        "[停止]": ("[停止]", "red"),
+        "[识别]": ("[识别]", "green")
+    }
+
+    def write(self, text):
+        #self.newText.emit(str(text) + '<br />')
+        for phrase, (replacement, color) in self.color_mapping.items():
+            if text.startswith(phrase):
+                text = text.replace(phrase, f'<font color="{color}">{replacement}</font>')
+                self.newText.emit(str(text) + '<br />')
+
+    def flush(self):
+        pass
+
+class Worker(QThread):
+    signal = pyqtSignal(str)
+
+    def __init__(self, parent=None, func=None, args=(), stream=None):
+        QThread.__init__(self, parent)
+        self.func = func
+        self.args = args
+        self.stream = stream
+
+    def run(self):
+        try:
+            with RedirectStdout(self.stream):
+                result = self.func(*self.args)
+                if result is not None:
+                    self.stream.write(str(result))
+        except Exception as e:
+            self.signal.emit(f"Error: {e}")
+
+    def stop(self):
+        self.running = False  # 停止 run 方法的执行
+
+    def print(self, message):
+        # 一个用于代替 print 的方法
+        self.signal.emit(message)
+
+class ClickerPage(QWidget):
+    """
+    ClickerPage类，这是我们应用的主界面。
+    """
+    
+    def __init__(self, port=""):
+        super().__init__()
+        self.port = port if port is not None else ""  # 如果端口是None，那么设置为空字符串
+        self.start_button = QPushButton("开始")
+        self.start_button.setObjectName("startButton")
+        self.stop_button = QPushButton("停止")
+        self.stop_button.setObjectName("StopButton")
+        self.control_buttons = [self.pause_continue_button, self.start_button, self.stop_button]
+        self.start_button.clicked.connect(self.start_clicked)
+        # 添加日志显示
+        self.log_display = QTextBrowser()
+        self.log_display.setObjectName("textBrowser")
+        self.log_display.setOpenExternalLinks(True)  # 允许打开外部链接
+        self.log_display.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOn)  # 始终显示垂直滚动条
+        self.layout.addWidget(self.log_display)
+
+        # 保存旧的 sys.stdout
+        #self.old_stdout = sys.stdout
+
+        # 创建一个 Stream 实例并将其设置为 sys.stdout
+        self.stream = Stream()
+        #sys.stdout = self.stream
+
+        # 连接 Stream 的 newText 信号到更新 log_display 的方法
+        self.stream.newText.connect(self.updateText)
+        def start_clicked(self):
+        """
+        "开始"按钮的点击事件处理。
+        """

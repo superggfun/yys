@@ -1,7 +1,8 @@
 """
 该模块提供一个PyQt5应用，该应用可以在选项卡界面中管理多个"ClickerPage"实例。
 """
-
+import subprocess
+import os
 from PyQt5.QtWidgets import (QApplication, QMainWindow, QPushButton, QVBoxLayout,
                             QTabWidget, QWidget, QGroupBox, QHBoxLayout, )
 from PyQt5.QtCore import Qt, QSettings
@@ -62,10 +63,10 @@ class ClickerApp(QMainWindow):
         with open('style.qss', 'r', encoding='utf-8') as style_file:  # specify the encoding
             self.setStyleSheet(style_file.read())
 
-    def add_page(self, port=None):  # 默认值设置为None
+    def add_page(self, port=None):  # 默认值设置为None，而不是""
         if port is None or port is False:  # 如果没有给出port，或者port为False，则将其设置为空字符串
             port = ""
-        page = ClickerPage(port)
+        page = ClickerPage(port, self.tab_widget.count())
         self.tab_widget.addTab(page, f"账号 {self.tab_widget.count() + 1}")
 
     def remove_page(self):
@@ -76,7 +77,7 @@ class ClickerApp(QMainWindow):
             self.tab_widget.removeTab(self.tab_widget.currentIndex())
 
     def save_ports(self):
-        ports = [self.tab_widget.widget(i).port for i in range(self.tab_widget.count()) if self.tab_widget.widget(i).port]
+        ports = [self.tab_widget.widget(i).port for i in range(self.tab_widget.count())]
         self.settings.setValue("ports", ports)
 
     # 当需要保存设置时（比如在窗口关闭事件中），调用 save_settings 函数。
@@ -84,7 +85,31 @@ class ClickerApp(QMainWindow):
         self.save_ports()
         event.accept()
 
+def kill_adb_server():
+    # 获取当前脚本的目录
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+
+    # 构建ADB可执行文件的路径
+    adb_path = os.path.join(current_dir, 'adb.exe')
+
+    # 检查ADB文件是否存在
+    if os.path.exists(adb_path):
+        # 杀死ADB服务端
+        try:
+            subprocess.run([adb_path, 'kill-server'])
+            print('ADB服务端已停止。')
+        except Exception as e:
+            print(f'停止ADB服务端时出错：{e}')
+    else:
+        print(f'路径不正确，未找到ADB文件：{adb_path}')
+
+
 if __name__ == '__main__':
     app = QApplication([])
+
+    # 连接 aboutToQuit 信号
+    #app.aboutToQuit.connect(kill_adb_server)
+    
+    # 假设 ClickerApp 是您定义的类
     ex = ClickerApp()
     app.exec_()

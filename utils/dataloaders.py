@@ -9,6 +9,7 @@ import hashlib
 import json
 import math
 import os
+import subprocess
 import random
 import shutil
 import time
@@ -45,6 +46,7 @@ from win32gui import DeleteObject, GetWindowDC
 from win32ui import CreateDCFromHandle, CreateBitmap
 
 from ppadb.client import Client as AdbClient
+
 
 
 # Parameters
@@ -243,7 +245,12 @@ class LoadScreenshots:
             device_address = self.name.split(':')
             host = device_address[0]
             port = int(device_address[1]) if len(device_address) > 1 else 5555
+            print('[通告] <font color="green">启动ADB服务端</font>')
+            current_dir = os.path.dirname(os.path.abspath(__file__))
+            batch_file_path = os.path.join(current_dir, 'start_adb.bat')
 
+            subprocess.run(batch_file_path, shell=True)
+            print(f'[通告] 开始连接{self.name}')
             client = AdbClient(host="127.0.0.1", port=5037)
             connected = client.remote_connect(host, port)
             try:  

@@ -7,10 +7,25 @@ from win32gui import EnumWindows, GetWindowText, IsWindow, IsWindowEnabled, IsWi
 
 from mode import Mode
 
-import re, sys
+import re, sys, torch
+
+class RedirectStdout:
+    def __init__(self, new_stdout):
+        self.new_stdout = new_stdout
+        self.old_stdout = sys.stdout
+
+    def __enter__(self):
+        sys.stdout = self.new_stdout
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        sys.stdout = self.old_stdout
 
 class Stream(QObject):
-    newText = pyqtSignal(str)
+    newText = pyqtSignal(str, str)  # 添加一个参数传递页面标识符
+
+    def __init__(self, page_id=None):
+        super().__init__()
+        self.page_id = page_id
 
     color_mapping = {
         "[通告]": ("[通告]", "orange"),
@@ -24,9 +39,9 @@ class Stream(QObject):
     def write(self, text):
         #self.newText.emit(str(text) + '<br />')
         for phrase, (replacement, color) in self.color_mapping.items():
-            if text.startswith(phrase):
+            if text.startswith(phrase) and self.page_id:
                 text = text.replace(phrase, f'<font color="{color}">{replacement}</font>')
-                self.newText.emit(str(text) + '<br />')
+                self.newText.emit(self.page_id, str(text) + '<br />')  # 将标识符作为参数发送
 
     def flush(self):
         pass
@@ -34,18 +49,21 @@ class Stream(QObject):
 class Worker(QThread):
     signal = pyqtSignal(str)
 
-    def __init__(self, parent=None, func=None, args=()):
+    def __init__(self, parent=None, func=None, args=(), stream=None):
         QThread.__init__(self, parent)
         self.func = func
         self.args = args
+        self.stream = stream
 
     def run(self):
         try:
-            # 在这里运行你的任务。如果你需要打印输出，使用 self.signal.emit() 而不是 print
-            result = self.func(*self.args)
-            if result is not None:  # 检查函数的返回值是否为 None
-                self.signal.emit(str(result))
-                print(result)
+            # 使用RedirectStdout来捕获在func中的print语句
+            with RedirectStdout(self.stream):
+                result = self.func(*self.args)
+
+            # 在调用func之后，直接将result写入stream
+            if result is not None:
+                self.stream.write(str(result))
         except Exception as e:
             self.signal.emit(f"Error: {e}")
 
@@ -61,8 +79,9 @@ class ClickerPage(QWidget):
     ClickerPage类，这是我们应用的主界面。
     """
     
-    def __init__(self, port=""):
+    def __init__(self, port="", page_id=None):
         super().__init__()
+        self.page_id=str(page_id)
         self.port = port if port is not None else ""  # 如果端口是None，那么设置为空字符串
         self.layout = QVBoxLayout()
         self.setLayout(self.layout)
@@ -102,7 +121,7 @@ class ClickerPage(QWidget):
         self.feature_layout = QVBoxLayout()
         self.feature_box.setLayout(self.feature_layout)
 
-        self.features = ["御魂", "结界突破", "痴","测试体力", "测试金币"]
+        self.features = ["御魂司机", "御魂跟车", "结界突破", "困28", "痴", "契灵", "测试体力", "测试金币"]
         self.feature_combo = QComboBox()
         self.feature_combo.addItems(self.features)
         self.feature_layout.addWidget(self.feature_combo)
@@ -152,12 +171,22 @@ class ClickerPage(QWidget):
         self.log_display.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOn)  # 始终显示垂直滚动条
         self.layout.addWidget(self.log_display)
 
+        if torch.cuda.is_available():
+            device_name = torch.cuda.get_device_name(0)
+            self.log(f'<font color="green">连接 {device_name} 成功</font><br />')
+        else:
+            self.log('<font color="red">未连接到GPU设备，正在使用CPU</font><br />')
+
+
+
         # 保存旧的 sys.stdout
-        self.old_stdout = sys.stdout
+        #self.old_stdout = sys.stdout
 
         # 创建一个 Stream 实例并将其设置为 sys.stdout
-        self.stream = Stream()
-        sys.stdout = self.stream
+        #self.page_id = str(uuid.uuid4())  # 生成唯一标识符
+        self.stream = Stream(page_id=self.page_id)
+        #self.stream = Stream()
+        #sys.stdout = self.stream
 
         # 连接 Stream 的 newText 信号到更新 log_display 的方法
         self.stream.newText.connect(self.updateText)
@@ -240,20 +269,25 @@ class ClickerPage(QWidget):
         selected_feature = self.feature_combo.currentText()
         # 创建 Worker 线程
         self.worker = Worker(self, self._init_mode_and_run, 
-                             (self.get_mode_value(), mode_value, game_limit, time_limit, selected_feature))
-        self.worker.signal.connect(self.log_display.append)
+                             (self.get_mode_value(), mode_value, game_limit, time_limit, selected_feature),
+                             stream=self.stream)
+        #self.worker.signal.connect(self.log_display.append)
         self.worker.start()  # 开始运行 worker 线程
 
     def _init_mode_and_run(self, window_name, mode_value, game_limit, time_limit, mode_method_name):
         self.mode = Mode(window_name, mode=mode_value, game_limit=game_limit, time_limit=time_limit)
         
         self.feature_dict = {
-            "御魂": self.mode.yuhun, 
+            "御魂司机": self.mode.yuhun, 
+            "御魂跟车": self.mode.yuhun2,
             "结界突破": self.mode.tupo, 
             "痴": self.mode.chi,
+            "契灵": self.mode.qiling,
             "测试体力": self.mode.test,
-            "测试金币": self.mode.test2
+            "测试金币": self.mode.test2,
+            "困28": self.mode.fuben
         }
+
         
         mode_method = self.feature_dict[mode_method_name]
         mode_method()
@@ -338,15 +372,12 @@ class ClickerPage(QWidget):
                     return item[0]
         return None
     
-    def updateText(self, text):
-        cursor = self.log_display.textCursor()
-        cursor.movePosition(cursor.End)
-        cursor.insertHtml(text)
-        self.log_display.setTextCursor(cursor)
-
-    def __del__(self):
-        # 恢复旧的 sys.stdout
-        sys.stdout = self.old_stdout
+    def updateText(self, page_id, text):
+        if page_id == self.page_id:
+            cursor = self.log_display.textCursor()
+            cursor.movePosition(cursor.End)
+            cursor.insertHtml(text)
+            self.log_display.setTextCursor(cursor)
 
     @staticmethod
     def get_window_handles(titles_to_find):
