@@ -14,6 +14,12 @@ pip install -r requirements.txt
 python main.py
 ```
 
+启动UI界面：
+
+```bash
+python ui.py
+```
+
 ### 类别说明
 模型可以识别以下类别
 *  0: jiacheng（加成）
