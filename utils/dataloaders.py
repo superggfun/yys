@@ -261,6 +261,11 @@ class LoadScreenshots:
 
             self.device = client.device(self.name)
             self.handle = self.name  # Add this line
+            self.left, self.top = 0, 0
+            result = self.device.screencap()
+            nparr = np.frombuffer(result, np.uint8)
+            im0 = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+            self.width, self.height = im0.shape[1], im0.shape[0]
         else:
             if isinstance(self.name, str):
                 if not self.name.isdigit():
@@ -405,7 +410,7 @@ class LoadScreenshots:
                 nparr = np.frombuffer(result, np.uint8)
                 im0 = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
                 self.width, self.height = im0.shape[1], im0.shape[0]
-                self.left, self.top = 0, 0
+                
             except Exception as e:
                 raise ScreenCapError(f"使用 adb 模式截屏时发生错误: {str(e)}")
 
