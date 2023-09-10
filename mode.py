@@ -113,7 +113,7 @@ class Mode(ObjectInteractor):
             self.detect_and_click("attack", self.perform_click_center, 1)
             if name is None:  # 添加了错误处理，如果detect_and_click_priority函数返回None（可能是超时或者出错），那么打印一个消息并跳出内部循环
                 print("No Detection!")
-                self.swipe_screen()
+                self.swipe_screen(direction="right")
                 continue
             #if self.detect_and_click("zhunbei", self.perform_click_center, 5):
             #    print(7)
@@ -134,8 +134,44 @@ class Mode(ObjectInteractor):
 
     @time_and_game_limit_decorator
     def test(self):
-        self.detect_and_click("tili", self.perform_click_center, stop_if_no_detect=True)
+        self.detect_and_click("tili", self.perform_click_center)
 
     @time_and_game_limit_decorator
     def test2(self):
-        self.detect_and_click("gold", self.perform_click_center, stop_if_no_detect=True)
+        self.detect_and_click("gold", self.perform_click_center)
+
+    @time_and_game_limit_decorator
+    def huodong(self):
+        self.detect_and_click("huodong_tiaozhan", self.perform_click_center)
+        self.detect_and_click("hun", self.perform_click_all)
+
+    @time_and_game_limit_decorator
+    def tupo2(self):
+        while not self.detect_and_click("tupo_new", self.perform_click_center, timeout = 1):
+            print("没有检测到目标，进行滑动")
+            self.swipe_screen(direction="up")
+
+        print("检测到目标并点击了，现在执行后续操作")
+        print(444)
+        
+        entered_while = False
+        while self.detect_and_click("jingong_off", self.perform_click_center, timeout = 1.5):
+            entered_while = True
+            self.detect_and_click("tupo_new", self.perform_click_center)
+            print("[通知]等待5秒")
+            time.sleep(5)
+            self.detect_and_click("tupo_new", self.perform_click_center)
+        print(555)
+        if entered_while:
+            self.detect_and_click("tupo_new", self.perform_click_center)
+        self.detect_and_click("jingong", self.perform_click_center)
+        self.detect_and_click("zhunbei", self.perform_click_center)
+        self.detect_and_click_any(["tupo_fail", "hun"], self.perform_click_all)
+        time.sleep(1)
+        self.detect_and_click("hun", self.perform_click_all, 1)
+
+    @time_and_game_limit_decorator
+    def tupo3(self):
+        self.detect_and_click("jingong_off", self.perform_click_center)
+        time.sleep(2)
+            

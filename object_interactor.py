@@ -33,6 +33,9 @@ class ObjectInteractor:
         self.dataset = self.detector.dataset
         self.stopped = False  # 添加 'stopped' 属性
 
+        if mode == "adb":
+            self.device = AdbClient(host="127.0.0.1", port=5037).device(self.window_name)
+
 
     def pause(self):
         """暂停执行"""
@@ -81,7 +84,7 @@ class ObjectInteractor:
         """
         detected_object = self.detector.start_detect(class_names, None, stop_if_no_detect)
         if detected_object:
-            perform_click(detected_object['bbox'], no_delay, double_click_probability, stop_if_no_detect)
+            perform_click(detected_object['bbox'], no_delay, double_click_probability)
         return detected_object is not None
 
     def detect_and_click_priority(self, class_priorities, perform_click, no_delay=False, double_click_probability=True, stop_if_no_detect=False):
@@ -97,7 +100,7 @@ class ObjectInteractor:
         :param double_click_probability: 是否有可能进行双击操作。默认为True。
         :param stop_if_no_detect: 如果设置为True，在没有检测到对象时立即返回None。
         :return: 如果检测到物体并执行了点击操作，则返回对应的类别名称，否则返回None。
-     WW   """
+        """
         # 按优先级对类别进行排序，优先级高的类别排在前面
         sorted_class_priorities = sorted(class_priorities.items(), key=lambda x: x[1], reverse=True)
 
@@ -225,12 +228,11 @@ class ObjectInteractor:
         :param double_click: 是否进行双击操作。
         """
         # 使用adb shell命令执行点击操作
-        device = AdbClient(host="127.0.0.1", port=5037).device(self.window_name)
-        device.shell(f'input tap {click_x} {click_y}')
+        self.device.shell(f'input tap {click_x} {click_y}')
 
         if double_click:
             # 执行第二次点击操作
-            device.shell(f'input tap {click_x} {click_y}')
+            self.device.shell(f'input tap {click_x} {click_y}')
 
     def perform_click_center(self, bbox, no_delay=False, double_click_probability=True):
         """
@@ -304,39 +306,43 @@ class ObjectInteractor:
         random_y = random.uniform(top, bottom)
 
         return random_x, random_y
+    
 
-    def swipe_screen(self, is_left_to_right=False):
+    def swipe_screen(self, direction: Literal['left', 'right', 'up', 'down']):
         """
         在当前窗口内随机执行一个滑动操作。
 
-        :param is_left_to_right: 滑动的方向。True表示从左向右滑动，False表示从右向左滑动。
+        :param direction: 滑动的方向，可接受值为 'left', 'right', 'up', 'down'.
         :return: None
         """
-        # 为了保证滑动操作在窗口内进行，我们设置滑动起始点和终止点的范围，这里假设滑动的区域距离窗口边缘为窗口的四分之一
-        left_boundary = self.dataset.left + self.dataset.width * 1 / 4
-        right_boundary = self.dataset.left + self.dataset.width * 3 / 4
+        # Calculate the boundaries based on the requirement
+        left_boundary = self.dataset.left + self.dataset.width * 1 / 3
+        right_boundary = self.dataset.left + self.dataset.width * 2 / 3
         top_boundary = self.dataset.top + self.dataset.height * 1 / 4
         bottom_boundary = self.dataset.top + self.dataset.height * 3 / 4
 
-        # 在设置的范围内随机选择滑动的起始点和终止点的y坐标（保持在同一水平线上）
+        x_start = x_end = random.uniform(left_boundary, right_boundary)
         y_start = y_end = random.uniform(top_boundary, bottom_boundary)
+        
+        if direction in ['left', 'right']:
+            width_delta = random.uniform(0, right_boundary - left_boundary) / 3
+            x_start = random.uniform(left_boundary, left_boundary + width_delta) if direction == 'right' else random.uniform(right_boundary - width_delta, right_boundary)
+            x_end = x_start + width_delta if direction == 'right' else x_start - width_delta
 
-        if is_left_to_right:
-            # 滑动的起始点的x坐标在左半部分随机选择
-            x_start = random.uniform(left_boundary, (left_boundary + right_boundary) / 2)
-            # 滑动的终止点的x坐标在滑动起始点的右边随机选择一个距离，距离在窗口宽度的三分之一左右
-            x_end = x_start + random.uniform(self.dataset.width * 1 / 6, self.dataset.width * 1 / 3)
-            x_end = min(x_end, right_boundary)
-        else:
-            # 滑动的起始点的x坐标在右半部分随机选择
-            x_start = random.uniform((left_boundary + right_boundary) / 2, right_boundary)
-            # 滑动的终止点的x坐标在滑动起始点的左边随机选择一个距离，距离在窗口宽度的三分之一左右
-            x_end = x_start - random.uniform(self.dataset.width * 1 / 6, self.dataset.width * 1 / 3)
-            x_end = max(x_end, left_boundary)
+        elif direction in ['up', 'down']:
+            height_delta = random.uniform(0, bottom_boundary - top_boundary) / 2
+            y_start = random.uniform(top_boundary, top_boundary + height_delta) if direction == 'down' else random.uniform(bottom_boundary - height_delta, bottom_boundary)
+            y_end = y_start + height_delta if direction == 'down' else y_start - height_delta
 
-        # 先移动到起始位置
-        pyautogui.moveTo(x_start, y_start)
+        x_end = min(max(x_end, left_boundary), right_boundary)
+        y_end = min(max(y_end, top_boundary), bottom_boundary)
 
-        # 执行滑动操作，你可以根据需要调整滑动的速度（第三个参数）
-        swipe_duration = random.uniform(0.5, 1)  # 随机滑动时间
-        pyautogui.dragTo(x_end, y_end, button='left', duration=swipe_duration)
+        swipe_duration = random.uniform(0.2, 0.4)  # For pyautogui, use seconds instead of milliseconds
+
+        # Depending on the mode, use either ADB or pyautogui for the swipe action
+        if self.dataset.mode == "adb":
+            adb_duration = int(swipe_duration * 1000)  # Convert to milliseconds
+            self.device.shell(f'input swipe {x_start} {y_start} {x_end} {y_end} {adb_duration}')
+        elif self.dataset.mode == "mss":
+            pyautogui.moveTo(x_start, y_start)
+            pyautogui.dragTo(x_end, y_end, button='left', duration=swipe_duration)
