@@ -49,6 +49,19 @@ class ObjectInteractor:
         """停止执行"""
         self.running = False
         self.detector.stop()
+
+
+    def just_click(self, perform_click, no_delay=False, double_click_probability=True):
+        """
+        直接在屏幕上执行点击操作，不进行物体检测。
+
+        :param perform_click: 用于执行点击操作的函数。
+        :param no_delay: 是否在点击后立即返回，不进行延迟。默认为False。
+        :param double_click_probability: 是否有可能进行双击操作。默认为True。
+        :return: True (表示已执行点击操作)
+        """
+        perform_click(None, no_delay, double_click_probability)
+        return True
         
 
     def detect_and_click(self, class_name, perform_click, timeout=None, no_delay=False, double_click_probability=True, stop_if_no_detect=False):
@@ -69,6 +82,7 @@ class ObjectInteractor:
                 perform_click(detected_object['bbox'], no_delay, double_click_probability)
             return detected_object is not None
         return False
+
 
 
     def detect_and_click_any(self, class_names, perform_click, no_delay=False, double_click_probability=True, stop_if_no_detect=False):
@@ -253,7 +267,27 @@ class ObjectInteractor:
         :param double_click_probability: 是否有可能进行双击操作。默认为True。
         """
         return self.perform_click(bbox, self.generate_click_position_all, no_delay=no_delay, double_click_probability=double_click_probability)
+    
+    def perform_click_center_lower_right(self, bbox, no_delay=False, double_click_probability=True):
+        """
+        对物体进行点击操作。点击位置为物体的中心点。
 
+        :param bbox: 物体的边界框。
+        :param no_delay: 是否在点击后立即返回，不进行延迟。默认为False。
+        :param double_click_probability: 是否有可能进行双击操作。默认为True。
+        """
+        return self.perform_click(bbox, self.generate_centered_lower_right, no_delay=no_delay, double_click_probability=double_click_probability)
+    
+    def perform_click_center_lower(self, bbox, no_delay=False, double_click_probability=True):
+        """
+        对物体进行点击操作。点击位置为物体的中心点。
+
+        :param bbox: 物体的边界框。
+        :param no_delay: 是否在点击后立即返回，不进行延迟。默认为False。
+        :param double_click_probability: 是否有可能进行双击操作。默认为True。
+        """
+        return self.perform_click(bbox, self.generate_centered_lower, no_delay=no_delay, double_click_probability=double_click_probability)
+    
     def generate_click_position_center(self, bbox):
         # 计算物体中心的点击位置
         """
@@ -280,6 +314,47 @@ class ObjectInteractor:
         random_y = random.uniform(center_y - height_10_percent, center_y + height_10_percent)
 
         return random_x, random_y
+    
+    def generate_centered_lower_right(self, _):
+        """
+        计算并返回屏幕中心的右下角，按1/5 之一的比例的点的坐标。
+
+        :return: 屏幕中心的右下角，按1/10 之一的比例的点的坐标（x, y）。
+        """
+        
+        #print(self.dataset.left, self.dataset.width, self.dataset.top, self.dataset.height)
+        center_x = self.dataset.left + self.dataset.width // 2
+        
+        center_y = self.dataset.top + self.dataset.height // 2
+        
+
+        x = int(center_x + self.dataset.width * 0.2)
+        y = int(center_y + self.dataset.height * 0.1)
+
+        return x, y
+    
+    def generate_centered_lower(self, _):
+        """
+        计算并返回屏幕中心的右下角，按1/5 之一的比例的点的坐标。
+
+        :return: 屏幕中心的右下角，按1/10 之一的比例的点的坐标（x, y）。
+        """
+        
+        #print(self.dataset.left, self.dataset.width, self.dataset.top, self.dataset.height)
+        center_x = self.dataset.left + self.dataset.width // 2
+        
+        center_y = self.dataset.top + self.dataset.height // 2
+        
+
+        random_width_ratio = random.uniform(0.2, 0.3)
+        random_height_ratio = random.uniform(0.3, 0.4)
+
+        x = int(center_x + self.dataset.width * random_width_ratio)
+        y = int(center_y + self.dataset.height * random_height_ratio)
+
+        return x, y
+        
+
 
     def generate_click_position_all(self, _):
         """
@@ -325,7 +400,7 @@ class ObjectInteractor:
         y_start = y_end = random.uniform(top_boundary, bottom_boundary)
         
         if direction in ['left', 'right']:
-            width_delta = random.uniform(0, right_boundary - left_boundary) / 3
+            width_delta = random.uniform(0, right_boundary - left_boundary) / 2
             x_start = random.uniform(left_boundary, left_boundary + width_delta) if direction == 'right' else random.uniform(right_boundary - width_delta, right_boundary)
             x_end = x_start + width_delta if direction == 'right' else x_start - width_delta
 

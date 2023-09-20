@@ -102,7 +102,7 @@ class Mode(ObjectInteractor):
         """
         执行点击操作。该方法首先进行物体检测，然后按照给定的类别顺序对检测到的物体进行点击操作。
         """
-        self.detect_and_click("instances_28", self.perform_click_center, 3)
+        self.detect_and_click("instances_14", self.perform_click_center, 3)
         print(1)
         self.detect_and_click("tansuo_botton", self.perform_click_center)
         print(2)
@@ -113,7 +113,7 @@ class Mode(ObjectInteractor):
             self.detect_and_click("attack", self.perform_click_center, 1)
             if name is None:  # 添加了错误处理，如果detect_and_click_priority函数返回None（可能是超时或者出错），那么打印一个消息并跳出内部循环
                 print("No Detection!")
-                self.swipe_screen(direction="right")
+                self.just_click(self.perform_click_center_lower_right)
                 continue
             #if self.detect_and_click("zhunbei", self.perform_click_center, 5):
             #    print(7)
@@ -122,6 +122,7 @@ class Mode(ObjectInteractor):
                 continue
             self.detect_and_click("hun", self.perform_click_all, 2)
             print(4)
+            time.sleep(1)
             if name == "attack_head":
                 print(5)
                 time.sleep(2)
@@ -129,7 +130,7 @@ class Mode(ObjectInteractor):
                     self.detect_and_click("gift", self.perform_click_center, 1)
                     self.detect_and_click("gain_gift", self.perform_click_all, 1)
                 break  # 如果检测到 "attack_head"，则跳出内部循环
-            time.sleep(random.uniform(0, 1))  # 在循环结束时暂停，以避免过快的循环
+        self.detect_and_click("baoxiang", self.perform_click_center, 2)
 
 
     @time_and_game_limit_decorator
@@ -143,7 +144,10 @@ class Mode(ObjectInteractor):
     @time_and_game_limit_decorator
     def huodong(self):
         self.detect_and_click("huodong_tiaozhan", self.perform_click_center)
-        self.detect_and_click("hun", self.perform_click_all)
+        self.detect_and_click("gain_gift", self.perform_click_center_lower)
+        random_sleep_time = random.uniform(0.4, 0.7)
+        time.sleep(random_sleep_time)
+        self.just_click(self.perform_click_center_lower)
 
     @time_and_game_limit_decorator
     def tupo2(self):
@@ -162,8 +166,9 @@ class Mode(ObjectInteractor):
             time.sleep(5)
             self.detect_and_click("tupo_new", self.perform_click_center)
         print(555)
-        if entered_while:
-            self.detect_and_click("tupo_new", self.perform_click_center)
+        #if entered_while:
+            #self.detect_and_click("tupo_new", self.perform_click_center)
+        time.sleep(1)
         self.detect_and_click("jingong", self.perform_click_center)
         self.detect_and_click("zhunbei", self.perform_click_center)
         self.detect_and_click_any(["tupo_fail", "hun"], self.perform_click_all)
@@ -171,7 +176,6 @@ class Mode(ObjectInteractor):
         self.detect_and_click("hun", self.perform_click_all, 1)
 
     @time_and_game_limit_decorator
-    def tupo3(self):
-        self.detect_and_click("jingong_off", self.perform_click_center)
-        time.sleep(2)
-            
+    def test(self):
+        self.just_click(self.perform_click_center_lower_right)
+        time.sleep(5)
