@@ -98,6 +98,15 @@ class Mode(ObjectInteractor):
         self.detect_and_click("hun", self.perform_click_all)
 
     @time_and_game_limit_decorator
+    def yulin(self):
+        """
+        执行点击操作。该方法首先进行物体检测，然后按照给定的类别顺序对检测到的物体进行点击操作。
+        """
+        self.detect_and_click("yulin_tiaozhan", self.perform_click_center)
+        self.detect_and_click("win", self.perform_click_center)
+        self.detect_and_click("hun", self.perform_click_all)
+
+    @time_and_game_limit_decorator
     def fuben(self):
         """
         执行点击操作。该方法首先进行物体检测，然后按照给定的类别顺序对检测到的物体进行点击操作。

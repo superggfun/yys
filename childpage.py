@@ -121,7 +121,7 @@ class ClickerPage(QWidget):
         self.feature_layout = QVBoxLayout()
         self.feature_box.setLayout(self.feature_layout)
 
-        self.features = ["御魂司机", "御魂跟车", "结界突破", "困28", "痴", "契灵", "测试体力", "测试金币", "活动", "寮突"]
+        self.features = ["御魂司机", "御魂跟车", "结界突破", "困28", "痴", "契灵", "测试体力", "测试金币", "活动", "寮突", "御林"]
         self.feature_combo = QComboBox()
         self.feature_combo.addItems(self.features)
         self.feature_layout.addWidget(self.feature_combo)
@@ -287,7 +287,8 @@ class ClickerPage(QWidget):
             "测试金币": self.mode.test2,
             "困28": self.mode.fuben,
             "活动": self.mode.huodong,
-            "寮突": self.mode.tupo2
+            "寮突": self.mode.tupo2,
+            "御林": self.mode.yulin
         }
 
         
