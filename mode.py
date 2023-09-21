@@ -114,6 +114,7 @@ class Mode(ObjectInteractor):
             if name is None:  # 添加了错误处理，如果detect_and_click_priority函数返回None（可能是超时或者出错），那么打印一个消息并跳出内部循环
                 print("No Detection!")
                 self.just_click(self.perform_click_center_lower_right)
+                time.sleep(2)
                 continue
             #if self.detect_and_click("zhunbei", self.perform_click_center, 5):
             #    print(7)
@@ -144,7 +145,7 @@ class Mode(ObjectInteractor):
     @time_and_game_limit_decorator
     def huodong(self):
         self.detect_and_click("huodong_tiaozhan", self.perform_click_center)
-        self.detect_and_click("gain_gift", self.perform_click_center_lower)
+        self.detect_and_click("gain_gift", self.perform_click_center_lower, double_click_probability=False)
         random_sleep_time = random.uniform(0.4, 0.7)
         time.sleep(random_sleep_time)
         self.just_click(self.perform_click_center_lower)
